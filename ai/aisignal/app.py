@@ -22,22 +22,23 @@ st.markdown("""
 
 def init_supabase():
     url, key = None, None
-    # 1. Render Secret File (최우선)
-    if os.path.exists("secrets.toml"):
+    # 1. 환경 변수 (Render 배포 환경 최우선)
+    url = os.environ.get('SUPABASE_URL')
+    key = os.environ.get('SUPABASE_KEY')
+    
+    # 2. Render Secret File (로컬 테스트용)
+    if (not url or not key) and os.path.exists("secrets.toml"):
         try:
             config = toml.load("secrets.toml")
             url, key = config.get("SUPABASE_URL"), config.get("SUPABASE_KEY")
         except: pass
-    # 2. 로컬 .streamlit/secrets.toml (맥미니 환경)
+    
+    # 3. 로컬 .streamlit/secrets.toml (맥미니 환경)
     if (not url or not key) and os.path.exists(".streamlit/secrets.toml"):
         try:
             config = toml.load(".streamlit/secrets.toml")
             url, key = config.get("SUPABASE_URL"), config.get("SUPABASE_KEY")
         except: pass
-    # 3. Streamlit Cloud / Render Environment Variables
-    if not url or not key:
-        url = st.secrets.get("SUPABASE_URL")
-        key = st.secrets.get("SUPABASE_KEY")
     
     return create_client(url, key) if url and key else None
 
