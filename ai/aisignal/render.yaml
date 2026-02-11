@@ -7,7 +7,7 @@ services:
     # Root Directory 설정: Render가 이 폴더를 프로젝트 루트로 인식
     rootDir: ai/aisignal
     buildCommand: pip install -r requirements.txt
-    startCommand: streamlit run app.py --server.port=$PORT --server.address=0.0.0.0 --server.headless=true
+    startCommand: python -m streamlit run app.py --server.port=$PORT --server.address=0.0.0.0 --server.headless=true
     envVars:
       - key: API_STATUS
         value: MOCK  # 초기 배포는 MOCK 모드로, 나중에 REAL로 변경
