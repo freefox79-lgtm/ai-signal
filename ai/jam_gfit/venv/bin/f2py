@@ -1,0 +1,6 @@
+#!/Users/freefox79gmail.com/개발프로젝트/ai/jam_gfit/venv/bin/python3.10
+import sys
+from numpy.f2py.f2py2e import main
+if __name__ == '__main__':
+    sys.argv[0] = sys.argv[0].removesuffix('.exe')
+    sys.exit(main())
