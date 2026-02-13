@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: ai-signal-v4
+    env: python
+    rootDir: ai/aisignal
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run app.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.7
+      - key: SUPABASE_URL
+        fromConfig: supabase_url
+      - key: SUPABASE_KEY
+        fromConfig: supabase_key
+      - key: DATABASE_URL
+        fromConfig: database_url
+      - key: REDIS_URL
+        fromConfig: redis_url
