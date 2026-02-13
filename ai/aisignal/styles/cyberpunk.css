@@ -165,3 +165,19 @@ input:focus {
     color: #ffffff !important;
     caret-color: var(--acc-neon) !important;
 }
+
+/* Fix for Button Visibility (Cyberpunk Style) */
+.stButton>button {
+    background: linear-gradient(45deg, var(--bg-dark), #1a1a2e);
+    border: 1px solid var(--acc-green);
+    color: var(--acc-green);
+    transition: all 0.3s ease;
+    font-weight: bold;
+}
+
+.stButton>button:hover {
+    background: var(--acc-green);
+    color: #000;
+    box-shadow: 0 0 15px var(--acc-green);
+    border-color: var(--acc-neon);
+}

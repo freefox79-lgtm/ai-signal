@@ -59,12 +59,15 @@ def show():
     import psycopg2
     import os
     try:
-        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        # Add sslmode='require' for cloud DB compatibility
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"), sslmode='require')
         with conn.cursor() as cur:
             cur.execute("SELECT keyword, insight, agent FROM signals ORDER BY updated_at DESC LIMIT 3")
             live_trends = cur.fetchall()
         conn.close()
-    except:
+    except Exception as e:
+        # Show error in UI for debugging production issues
+        st.error(f"DB Connection Error: {e}")
         live_trends = []
 
     c1, c2, c3 = st.columns(3)
