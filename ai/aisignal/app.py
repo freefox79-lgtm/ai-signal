@@ -9,7 +9,7 @@ load_dotenv()
 
 # 🎯 Page Config & Custom CSS
 st.set_page_config(
-    page_title="AI SIGNAL v4.0", 
+    page_title="AI SIGNAL Inc.", 
     page_icon="🛰️", 
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -50,4 +50,4 @@ with tab_dash:
 
 #  footer
 st.markdown("---")
-st.caption("AI SIGNAL v4.0 | Powering Autonomous Data Sources | [Antigravity System]")
+st.caption("AI SIGNAL Inc. | Powering Autonomous Data Sources | [Antigravity System]")

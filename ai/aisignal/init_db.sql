@@ -20,6 +20,9 @@ CREATE TABLE IF NOT EXISTS signals (
     id SERIAL PRIMARY KEY,
     keyword VARCHAR(255) UNIQUE NOT NULL, -- 트렌드 키워드 [cite: 2026-02-13]
     category VARCHAR(50),
+    insight TEXT, -- 통합 인사이트 [cite: 2026-02-14]
+    agent VARCHAR(50), -- 담당 에이전트 [cite: 2026-02-14]
+    synced BOOLEAN DEFAULT FALSE,
     logic_analysis TEXT, -- 쥄(Jwem)의 논리 분석 [cite: 2026-02-07]
     meme_content JSONB, -- 쥐핏(Jfit)의 밈과 커뮤니티 반응 [cite: 2026-02-07]
     sentiment_score INTEGER, -- 감성 지수 (%) [cite: 2026-02-13]
@@ -73,4 +76,18 @@ CREATE TABLE IF NOT EXISTS action_buttons (
     platform VARCHAR(50), -- coupang, naver, linkprice
     affiliate_url TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 7. 쥄(Jwem) 포트폴리오 스택 [cite: 2026-02-14]
+CREATE TABLE IF NOT EXISTS jwem_portfolio (
+    id BIGSERIAL PRIMARY KEY,
+    stock_code TEXT UNIQUE NOT NULL,
+    stock_name TEXT,
+    account_type TEXT, -- 'general', 'isa', 'pension', 'irp'
+    quantity INTEGER DEFAULT 0,
+    avg_price DECIMAL DEFAULT 0,
+    current_price DECIMAL DEFAULT 0,
+    profit_loss DECIMAL DEFAULT 0,
+    profit_rate DECIMAL DEFAULT 0,
+    last_updated TIMESTAMPTZ DEFAULT NOW()
 );

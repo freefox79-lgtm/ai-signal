@@ -1,6 +1,7 @@
 import redis
 import os
 import json
+import datetime
 from dotenv import load_dotenv
 
 load_dotenv(".env.local")
@@ -21,10 +22,18 @@ class CacheManager:
             decode_responses=True
         )
 
-    def set_signal(self, key, data, expiry=3600):
-        """Cache a signal for a specified duration (default 1h)."""
+    def set_signal(self, key, data, source="unknown", expiry=3600):
+        """Cache a signal with automatic metadata (timestamp, source)."""
         try:
-            self.r.set(f"signal:{key}", json.dumps(data), ex=expiry)
+            payload = {
+                "data": data,
+                "metadata": {
+                    "source": source,
+                    "timestamp": datetime.datetime.now().isoformat(),
+                    "cached": True
+                }
+            }
+            self.r.set(f"signal:{key}", json.dumps(payload), ex=expiry)
             return True
         except Exception as e:
             print(f"[CACHE] Set Error: {e}")
@@ -39,9 +48,35 @@ class CacheManager:
             print(f"[CACHE] Get Error: {e}")
             return None
 
+    def cached(self, source, expiry=3600):
+        """Decorator for transparent caching of API responses."""
+        def decorator(func):
+            def wrapper(self_obj, *args, **kwargs):
+                # Simple key based on function name and arguments
+                # Skipping 'self_obj' in args for key generation
+                cache_key = f"{func.__name__}:{str(args)}:{str(kwargs)}"
+                cached_data = self.get_signal(cache_key)
+                
+                if cached_data:
+                    return cached_data["data"]
+                
+                # Fetch fresh data
+                result = func(self_obj, *args, **kwargs)
+                if result:
+                    self.set_signal(cache_key, result, source=source, expiry=expiry)
+                return result
+            return wrapper
+        return decorator
+
 if __name__ == "__main__":
     cache = CacheManager()
-    # Test
-    test_data = {"id": "S123", "value": "Strong Buy AI Semi"}
-    if cache.set_signal("test_1", test_data):
-        print(f"[CACHE] Success: {cache.get_signal('test_1')}")
+    
+    @cache.cached(source="TestSystem", expiry=60)
+    def fetch_test_data(query):
+        print(f"Fetching fresh data for {query}...")
+        return {"result": f"Data for {query}"}
+
+    # First call - Fresh
+    print(fetch_test_data("AI"))
+    # Second call - Cached
+    print(fetch_test_data("AI"))

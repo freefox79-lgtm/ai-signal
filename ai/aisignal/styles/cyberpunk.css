@@ -15,6 +15,16 @@
     font-family: 'Inter', sans-serif;
 }
 
+/* Hide Sidebar/Wing Tab */
+[data-testid="stSidebar"],
+[data-testid="stSidebarNav"] {
+    display: none !important;
+}
+
+.stMain {
+    margin-left: 0 !important;
+}
+
 /* Glassmorphism Cards */
 .glass-card {
     background: var(--glass-bg);
@@ -112,8 +122,46 @@
         font-size: 0.9rem !important;
     }
 
-    button {
-        width: 100% !important;
-        margin-bottom: 5px;
+    /* Prevent scan button from becoming full-width and stacking on mobile */
+    .search-row button {
+        width: auto !important;
     }
+}
+
+/* 🚀 Horizontal Search Row (Mobile Friendly) */
+.search-row {
+    display: flex !important;
+    width: 100%;
+    gap: 10px;
+    align-items: center;
+}
+
+.search-input {
+    flex-grow: 1;
+}
+
+.search-button {
+    flex-shrink: 0;
+}
+
+/* 🖋️ Input Field Accessibility & Fixes */
+input {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    color: #ffffff !important;
+    border: 1px solid var(--glass-border) !important;
+}
+
+input:focus {
+    border-color: var(--acc-green) !important;
+    box-shadow: 0 0 10px rgba(3, 199, 90, 0.3) !important;
+}
+
+[data-testid="stTextInput"] label {
+    color: var(--acc-green) !important;
+}
+
+/* Fix for Streamlit text input white-on-white issues */
+.stTextInput>div>div>input {
+    color: #ffffff !important;
+    caret-color: var(--acc-neon) !important;
 }

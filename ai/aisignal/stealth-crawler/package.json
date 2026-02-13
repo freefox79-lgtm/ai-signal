@@ -1,0 +1,15 @@
+{
+    "name": "aisignal-stealth-crawler",
+    "version": "1.0.0",
+    "description": "SNS Stealth Crawler for AI Signal v4.0",
+    "main": "index.js",
+    "dependencies": {
+        "puppeteer": "^22.0.0",
+        "puppeteer-extra": "^3.3.6",
+        "puppeteer-extra-plugin-stealth": "^2.11.2",
+        "@modelcontextprotocol/sdk": "latest"
+    },
+    "scripts": {
+        "start": "node index.js"
+    }
+}

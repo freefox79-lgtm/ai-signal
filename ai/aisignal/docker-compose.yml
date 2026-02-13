@@ -87,6 +87,33 @@ services:
       timeout: 5s
       retries: 5
 
+  # SNS Stealth Crawler (Tier 2 Engine)
+  stealth-crawler:
+    build: ./stealth-crawler
+    container_name: aisignal-stealth-crawler
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - DISPLAY=:99
+    volumes:
+      - ./sessions:/app/sessions
+    networks:
+      - aisignal-network
+    depends_on:
+      - redis
+      - postgres
+
+  # Cloudflare Tunnel for External Access
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: aisignal-tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    networks:
+      - aisignal-network
+
 networks:
   aisignal-network:
     driver: bridge

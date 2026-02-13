@@ -1,5 +1,29 @@
 import streamlit as st
+import psycopg2
+import os
 from components.ui_elements import render_cyber_card
+from api_connectors import APIConnectors
+from dotenv import load_dotenv
+
+load_dotenv(".env.local")
+DB_URL = os.getenv("DATABASE_URL")
+connectors = APIConnectors()
+
+def get_live_data():
+    try:
+        conn = psycopg2.connect(DB_URL)
+        with conn.cursor() as cur:
+            # Fetch Jwem's Portfolio
+            cur.execute("SELECT stock_code, current_price, profit_rate FROM jwem_portfolio LIMIT 5")
+            portfolio = cur.fetchall()
+            # Fetch Jfit's Trends
+            cur.execute("SELECT keyword, insight FROM signals WHERE agent = 'Jfit' ORDER BY updated_at DESC LIMIT 3")
+            trends = cur.fetchall()
+        conn.close()
+        return portfolio, trends
+    except Exception as e:
+        print(f"[UI ERROR] {e}")
+        return [], []
 
 def show():
     # 🎯 MOD-T 네온 헤더
@@ -10,30 +34,36 @@ def show():
         </div>
     """, unsafe_allow_html=True)
 
+    portfolio, trends = get_live_data()
+
     # 🚀 분할 뷰 설정
     col_jwem, col_jfit = st.columns(2)
     
     with col_jwem:
         st.markdown("""
             <div style='background: rgba(0, 212, 255, 0.1); padding: 10px; border-radius: 10px; border-bottom: 2px solid var(--acc-blue); margin-bottom: 20px;'>
-                <h3 style='color: var(--acc-blue); margin: 0;'>📘 쥄: 논리적 깊이</h3>
+                <h3 style='color: var(--acc-blue); margin: 0;'>📘 쥄: 매크로 & 금융</h3>
             </div>
         """, unsafe_allow_html=True)
         
-        render_cyber_card("글로벌 매크로 분석", "미 국채 수익률 상승 중. 기술주 밸류에이션 모델에 미치는 영향은 5% 조정 리스크를 시사합니다.", "blue")
-        render_cyber_card("알고리즘 시그널", "코스피 200 지수가 345.2에서 강력한 피보나치 지지를 보이고 있습니다. 분할 매수를 권장합니다.", "blue")
-        render_cyber_card("공급망 노드", "TSMC 2nm 수율이 80% 이상으로 보고되었습니다. 차세대 가전제품에 낙관적입니다.", "blue")
+        if portfolio:
+            for stock, price, p_rate in portfolio:
+                render_cyber_card(f"{stock}", f"현재가: ${price} | 수익률: {p_rate or 0}%", "blue")
+        else:
+            st.caption("포트폴리오 데이터가 아직 없습니다.")
 
     with col_jfit:
         st.markdown("""
             <div style='background: rgba(57, 255, 20, 0.1); padding: 10px; border-radius: 10px; border-bottom: 2px solid var(--acc-neon); margin-bottom: 20px;'>
-                <h3 style='color: var(--acc-neon); margin: 0;'>🔥 쥐핏: 하이프 & 바이럴</h3>
+                <h3 style='color: var(--acc-neon); margin: 0;'>🔥 쥐핏: 하이프 & SNS</h3>
             </div>
         """, unsafe_allow_html=True)
         
-        render_cyber_card("S-Tier 밈 경보", "동남아시아에서 고양이 테마 토큰 트렌딩 중. 1시간 만에 거래량 450% 증가! 탑승할래 아니면 계속 가난할래? ㅋㅋㅋ", "green")
-        render_cyber_card("바이럴 패션 싱크", "나이키와 사이버펑크 2077 콜라보 루머. 리셀 시장 벌써 후끈함! 렛츠기릿!", "green")
-        render_cyber_card("숏폼 메타", "틱톡에서 15초짜리 AI 생성 댄스 영상이 새로운 노다지임. 가즈아~!", "green")
+        if trends:
+            for keyword, insight in trends:
+                render_cyber_card(f"LIVE: {keyword}", insight, "green")
+        else:
+            render_cyber_card("S-Tier 밈 경보", "데이터 수집 중... 쥐핏이 열일하고 있습니다.", "green")
 
     st.divider()
     
