@@ -1,0 +1,37 @@
+{
+  "mcpServers": {
+    "google-search": {
+      "command": "node",
+      "args": ["/Users/freefox79gmail.com/개발프로젝트/ai/aisignal/mcp_infrastructure/servers-archived/src/google-search/dist/index.js"],
+      "env": {
+        "GOOGLE_API_KEY": "YOUR_API_KEY_HERE",
+        "GOOGLE_CX": "YOUR_CX_HERE"
+      }
+    },
+    "brave-search": {
+      "command": "node",
+      "args": ["/Users/freefox79gmail.com/개발프로젝트/ai/aisignal/mcp_infrastructure/brave-search-mcp-server/dist/index.js"],
+      "env": {
+        "BRAVE_API_KEY": "YOUR_API_KEY_HERE"
+      }
+    },
+    "puppeteer": {
+      "command": "node",
+      "args": ["/Users/freefox79gmail.com/개발프로젝트/ai/aisignal/mcp_infrastructure/servers-archived/src/puppeteer/dist/index.js"]
+    },
+    "postgres": {
+      "command": "node",
+      "args": ["/Users/freefox79gmail.com/개발프로젝트/ai/aisignal/mcp_infrastructure/servers-archived/src/postgres/dist/index.js"],
+      "env": {
+        "POSTGRES_URL": "postgresql://postgres:postgres@localhost:5432/postgres"
+      }
+    },
+    "filesystem": {
+      "command": "node",
+      "args": ["/Users/freefox79gmail.com/개발프로젝트/ai/aisignal/mcp_infrastructure/servers/src/filesystem/dist/index.js"],
+      "env": {
+        "ALLOWED_DIRECTORIES": ["/Users/freefox79gmail.com/개발프로젝트"]
+      }
+    }
+  }
+}

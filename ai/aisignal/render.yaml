@@ -1,19 +1,19 @@
 services:
   - type: web
-    name: ai-signal
+    name: ai-signal-v4
     env: python
-    region: oregon
-    plan: free
-    # Root Directory 설정: Render가 이 폴더를 프로젝트 루트로 인식
-    rootDir: ai/aisignal
     buildCommand: pip install -r requirements.txt
-    startCommand: python -m streamlit run app.py --server.port=$PORT --server.address=0.0.0.0 --server.headless=true
+    startCommand: streamlit run app.py
     envVars:
-      - key: API_STATUS
-        value: MOCK  # 초기 배포는 MOCK 모드로, 나중에 REAL로 변경
       - key: PYTHON_VERSION
-        value: 3.14.0
+        value: 3.12.7
+      - key: STREAMLIT_SERVER_PORT
+        value: 10000
       - key: SUPABASE_URL
-        sync: false  # Render 대시보드에서 수동 설정
+        fromConfig: supabase_url
       - key: SUPABASE_KEY
-        sync: false  # Render 대시보드에서 수동 설정
+        fromConfig: supabase_key
+      - key: DATABASE_URL
+        fromConfig: database_url
+      - key: REDIS_URL
+        fromConfig: redis_url
