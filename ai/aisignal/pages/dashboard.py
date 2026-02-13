@@ -3,7 +3,7 @@ import os, json
 import psycopg2
 from dotenv import load_dotenv
 
-load_dotenv(".env.local")
+load_dotenv()
 DB_URL = os.getenv("DATABASE_URL")
 
 def get_mcp_status_from_db():

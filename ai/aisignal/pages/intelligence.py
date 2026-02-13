@@ -5,7 +5,7 @@ from components.ui_elements import render_cyber_card
 from api_connectors import APIConnectors
 from dotenv import load_dotenv
 
-load_dotenv(".env.local")
+load_dotenv()
 DB_URL = os.getenv("DATABASE_URL")
 connectors = APIConnectors()
 
