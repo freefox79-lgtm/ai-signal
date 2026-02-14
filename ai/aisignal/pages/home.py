@@ -54,20 +54,33 @@ def show():
     st.divider()
     
     # 🎯 AI Signal 실검
-    st.markdown("### 🔥 AI Signal 실검")
+    from datetime import datetime
+    col_header, col_timestamp = st.columns([3, 1])
+    with col_header:
+        st.markdown("### 🔥 AI Signal 실검")
+    with col_timestamp:
+        st.markdown(f"<p style='text-align: right; color: #8e8e93; font-size: 0.85rem; margin-top: 10px;'>업데이트: {datetime.now().strftime('%H:%M:%S')}</p>", unsafe_allow_html=True)
     
     import psycopg2
     import os
     try:
-        # Add sslmode='require' for cloud DB compatibility
-        conn = psycopg2.connect(os.getenv("DATABASE_URL"), sslmode='require')
+        # Use local DB without SSL for development, cloud DB with SSL for production
+        db_url = os.getenv("DATABASE_URL")
+        if not db_url:
+            raise ValueError("DATABASE_URL not set in environment")
+        
+        # Only add SSL if connecting to cloud (contains 'supabase' in URL)
+        if 'supabase' in db_url:
+            conn = psycopg2.connect(db_url, sslmode='require')
+        else:
+            conn = psycopg2.connect(db_url)
+        
         with conn.cursor() as cur:
             cur.execute("SELECT keyword, insight, agent FROM signals ORDER BY updated_at DESC LIMIT 3")
             live_trends = cur.fetchall()
         conn.close()
     except Exception as e:
-        # Show error in UI for debugging production issues
-        st.error(f"DB Connection Error: {e}")
+        # Graceful fallback - no error message shown to user
         live_trends = []
 
     c1, c2, c3 = st.columns(3)

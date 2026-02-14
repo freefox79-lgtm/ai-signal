@@ -1,0 +1,265 @@
+{
+    "name": "AI Signal - Trend Collection 4H",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "0 */4 * * *"
+                        }
+                    ]
+                }
+            },
+            "name": "Every 4 Hours",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.1,
+            "position": [
+                250,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "mode": "runOnceForAllItems",
+                "jsCode": "const { exec } = require('child_process');\nconst util = require('util');\nconst execPromise = util.promisify(exec);\n\nconst command = 'cd /Users/freefox79gmail.com/개발프로젝트/ai/aisignal && source venv/bin/activate && python scripts/collect_sns_trends.py';\n\ntry {\n  const { stdout, stderr } = await execPromise(command, { shell: '/bin/bash' });\n  return [{ json: { success: true, stdout, stderr, code: 0 } }];\n} catch (error) {\n  return [{ json: { success: false, error: error.message, stderr: error.stderr, code: error.code || 1 } }];\n}"
+            },
+            "name": "Collect SNS Trends",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                450,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "mode": "runOnceForAllItems",
+                "jsCode": "const hour = new Date().getHours();\nconst shouldCollectCommunity = hour % 6 === 0;\nreturn [{ json: { collect: shouldCollectCommunity } }];"
+            },
+            "name": "Check Community Schedule",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                450,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "mode": "runOnceForAllItems",
+                "jsCode": "const hour = new Date().getHours();\nconst shouldCollectShopping = hour === 9 || hour === 21;\nreturn [{ json: { collect: shouldCollectShopping } }];"
+            },
+            "name": "Check Shopping Schedule",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                450,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "value1": "={{$json.collect}}",
+                            "value2": true
+                        }
+                    ]
+                }
+            },
+            "name": "Should Collect Community?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                650,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "value1": "={{$json.collect}}",
+                            "value2": true
+                        }
+                    ]
+                }
+            },
+            "name": "Should Collect Shopping?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                650,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "mode": "runOnceForAllItems",
+                "jsCode": "const { exec } = require('child_process');\nconst util = require('util');\nconst execPromise = util.promisify(exec);\n\nconst command = 'cd /Users/freefox79gmail.com/개발프로젝트/ai/aisignal && source venv/bin/activate && python scripts/collect_community_trends.py';\n\ntry {\n  const { stdout, stderr } = await execPromise(command, { shell: '/bin/bash' });\n  return [{ json: { success: true, stdout, stderr, code: 0 } }];\n} catch (error) {\n  return [{ json: { success: false, error: error.message, stderr: error.stderr, code: error.code || 1 } }];\n}"
+            },
+            "name": "Collect Community Trends",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                850,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "mode": "runOnceForAllItems",
+                "jsCode": "const { exec } = require('child_process');\nconst util = require('util');\nconst execPromise = util.promisify(exec);\n\nconst command = 'cd /Users/freefox79gmail.com/개발프로젝트/ai/aisignal && source venv/bin/activate && python scripts/collect_shopping_trends.py';\n\ntry {\n  const { stdout, stderr } = await execPromise(command, { shell: '/bin/bash' });\n  return [{ json: { success: true, stdout, stderr, code: 0 } }];\n} catch (error) {\n  return [{ json: { success: false, error: error.message, stderr: error.stderr, code: error.code || 1 } }];\n}"
+            },
+            "name": "Collect Shopping Trends",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                850,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "mode": "combine",
+                "combineBy": "combineAll"
+            },
+            "name": "Merge Results",
+            "type": "n8n-nodes-base.merge",
+            "typeVersion": 2.1,
+            "position": [
+                1050,
+                300
+            ]
+        },
+        {
+            "parameters": {},
+            "name": "Trend Collection Log",
+            "type": "n8n-nodes-base.noOp",
+            "typeVersion": 1,
+            "position": [
+                1250,
+                300
+            ]
+        }
+    ],
+    "connections": {
+        "Every 4 Hours": {
+            "main": [
+                [
+                    {
+                        "node": "Collect SNS Trends",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Check Community Schedule",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Check Shopping Schedule",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Community Schedule": {
+            "main": [
+                [
+                    {
+                        "node": "Should Collect Community?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Shopping Schedule": {
+            "main": [
+                [
+                    {
+                        "node": "Should Collect Shopping?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Should Collect Community?": {
+            "main": [
+                [
+                    {
+                        "node": "Collect Community Trends",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Should Collect Shopping?": {
+            "main": [
+                [
+                    {
+                        "node": "Collect Shopping Trends",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Collect SNS Trends": {
+            "main": [
+                [
+                    {
+                        "node": "Merge Results",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Collect Community Trends": {
+            "main": [
+                [
+                    {
+                        "node": "Merge Results",
+                        "type": "main",
+                        "index": 1
+                    }
+                ]
+            ]
+        },
+        "Collect Shopping Trends": {
+            "main": [
+                [
+                    {
+                        "node": "Merge Results",
+                        "type": "main",
+                        "index": 2
+                    }
+                ]
+            ]
+        },
+        "Merge Results": {
+            "main": [
+                [
+                    {
+                        "node": "Trend Collection Log",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "active": false,
+    "settings": {
+        "executionOrder": "v1"
+    }
+}

@@ -11,7 +11,13 @@ connectors = APIConnectors()
 
 def get_live_data():
     try:
-        conn = psycopg2.connect(DB_URL)
+        if not DB_URL:
+            return [], []
+        # Smart SSL detection
+        if 'supabase' in DB_URL:
+            conn = psycopg2.connect(DB_URL, sslmode='require')
+        else:
+            conn = psycopg2.connect(DB_URL)
         with conn.cursor() as cur:
             # Fetch Jwem's Portfolio
             cur.execute("SELECT stock_code, current_price, profit_rate FROM jwem_portfolio LIMIT 5")

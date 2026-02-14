@@ -1,0 +1,15 @@
+# AI Signal Cron Jobs
+# 자동 데이터 수집 및 모니터링
+
+# 1. 하드웨어 모니터링 (1시간마다)
+# Mac Mini 리소스 체크 및 Telegram 알림
+0 * * * * cd /Users/freefox79gmail.com/개발프로젝트/ai/aisignal && source venv/bin/activate && python scaling_monitor.py >> /tmp/scaling_monitor.log 2>&1
+
+# 2. n8n 워크플로우는 자동 실행됨 (n8n 내부 스케줄러)
+# - Economic Indicators: 매일 09:00
+# - Market Data: 매시간 (조건부)
+# - Trend Collection: 4시간마다
+
+# 로그 파일 위치:
+# - 하드웨어 모니터링: /tmp/scaling_monitor.log
+# - n8n 워크플로우: n8n 내부 로그

@@ -1,0 +1,184 @@
+{
+    "name": "AI Signal - Market Data Hourly",
+    "nodes": [
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "cronExpression",
+                            "expression": "0 * * * *"
+                        }
+                    ]
+                }
+            },
+            "name": "Every Hour",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.1,
+            "position": [
+                250,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "mode": "runOnceForAllItems",
+                "jsCode": "const hour = new Date().getHours();\nconst day = new Date().getDay();\n\nconst isWeekend = day === 0 || day === 6;\nconst isKoreanMarket = hour >= 9 && hour <= 15 && !isWeekend;\nconst isUSMarket = (hour >= 23 || hour <= 6) && !isWeekend;\nconst isCrypto = true;\n\nreturn [{\n  json: {\n    korean: isKoreanMarket,\n    us: isUSMarket,\n    crypto: isCrypto,\n    shouldCollect: isKoreanMarket || isUSMarket || isCrypto\n  }\n}];"
+            },
+            "name": "Check Market Hours",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                450,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "boolean": [
+                        {
+                            "value1": "={{$json.shouldCollect}}",
+                            "value2": true
+                        }
+                    ]
+                }
+            },
+            "name": "Should Collect?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                650,
+                300
+            ]
+        },
+        {
+            "parameters": {
+                "mode": "runOnceForAllItems",
+                "jsCode": "const { exec } = require('child_process');\nconst util = require('util');\nconst execPromise = util.promisify(exec);\n\nconst command = 'redis-cli -a aisignal2026_secure DEL \"market_indices:$(date +%Y%m%d%H)\"';\n\ntry {\n  const { stdout, stderr } = await execPromise(command);\n  return [{ json: { success: true, stdout, stderr, code: 0 } }];\n} catch (error) {\n  return [{ json: { success: false, error: error.message, code: 1 } }];\n}"
+            },
+            "name": "Clear Market Cache",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                850,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "mode": "runOnceForAllItems",
+                "jsCode": "const { exec } = require('child_process');\nconst util = require('util');\nconst execPromise = util.promisify(exec);\n\nconst command = 'cd /Users/freefox79gmail.com/개발프로젝트/ai/aisignal && source venv/bin/activate && python scripts/collect_market_data.py';\n\ntry {\n  const { stdout, stderr } = await execPromise(command, { shell: '/bin/bash' });\n  return [{ json: { success: true, stdout, stderr, code: 0 } }];\n} catch (error) {\n  return [{ json: { success: false, error: error.message, stderr: error.stderr, code: error.code || 1 } }];\n}"
+            },
+            "name": "Collect Market Data",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1050,
+                200
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "number": [
+                        {
+                            "value1": "={{$json.code}}",
+                            "operation": "equal",
+                            "value2": 0
+                        }
+                    ]
+                }
+            },
+            "name": "Check Success",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [
+                1250,
+                200
+            ]
+        },
+        {
+            "parameters": {},
+            "name": "Success Log",
+            "type": "n8n-nodes-base.noOp",
+            "typeVersion": 1,
+            "position": [
+                1450,
+                100
+            ]
+        }
+    ],
+    "connections": {
+        "Every Hour": {
+            "main": [
+                [
+                    {
+                        "node": "Check Market Hours",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Market Hours": {
+            "main": [
+                [
+                    {
+                        "node": "Should Collect?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Should Collect?": {
+            "main": [
+                [
+                    {
+                        "node": "Clear Market Cache",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Clear Market Cache": {
+            "main": [
+                [
+                    {
+                        "node": "Collect Market Data",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Collect Market Data": {
+            "main": [
+                [
+                    {
+                        "node": "Check Success",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Check Success": {
+            "main": [
+                [
+                    {
+                        "node": "Success Log",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "active": false,
+    "settings": {
+        "executionOrder": "v1"
+    }
+}

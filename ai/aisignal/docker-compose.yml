@@ -1,129 +1,140 @@
 version: '3.8'
 
 services:
-  # n8n Workflow Automation
-  n8n:
-    image: n8nio/n8n:latest
-    container_name: aisignal-n8n
-    restart: unless-stopped
-    ports:
-      - "5678:5678"
+  # ========================================
+  # Database Layer (PostgreSQL + pgvector)
+  # ========================================
+  postgres:
+    image: ankane/pgvector:latest
+    container_name: aisignal-postgres
     environment:
-      - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=${N8N_USER:-admin}
-      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD:-changeme}
-      - N8N_HOST=${N8N_HOST:-localhost}
-      - N8N_PORT=5678
-      - N8N_PROTOCOL=http
-      - WEBHOOK_URL=http://localhost:5678/
-      - GENERIC_TIMEZONE=Asia/Seoul
+      POSTGRES_DB: ${DB_NAME:-aisignal}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
     volumes:
-      - n8n_data:/home/node/.n8n
-      - ./n8n/workflows:/home/node/.n8n/workflows
+      - postgres_data:/var/lib/postgresql/data
+      - ./init_db.sql:/docker-entrypoint-initdb.d/01_init.sql
+      - ./migrations:/docker-entrypoint-initdb.d/migrations
     networks:
       - aisignal-network
     healthcheck:
-      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:5678/healthz" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER:-postgres}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  # Redis Cache & Queue
+  # ========================================
+  # Cache Layer (Redis)
+  # ========================================
   redis:
     image: redis:7-alpine
     container_name: aisignal-redis
-    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-aisignal2026_secure}
     ports:
       - "6379:6379"
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-aisignal2026}
     volumes:
       - redis_data:/data
     networks:
       - aisignal-network
     healthcheck:
-      test: [ "CMD", "redis-cli", "--raw", "incr", "ping" ]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-aisignal2026_secure}", "ping" ]
+      interval: 10s
+      timeout: 3s
+      retries: 5
 
-  # Ollama Local LLM
+  # ========================================
+  # Workflow Automation (n8n)
+  # ========================================
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: aisignal-n8n
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_USER:-admin}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD:-changeme}
+      - N8N_HOST=0.0.0.0
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://localhost:5678/
+      - GENERIC_TIMEZONE=Asia/Seoul
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=${DB_NAME:-aisignal}
+      - DB_POSTGRESDB_USER=${DB_USER:-postgres}
+      - DB_POSTGRESDB_PASSWORD=${DB_PASSWORD:-postgres}
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n/workflows:/home/node/.n8n/workflows
+    networks:
+      - aisignal-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ========================================
+  # Local LLM (Ollama) - Mac Mini M1/M2 GPU
+  # ========================================
   ollama:
     image: ollama/ollama:latest
     container_name: aisignal-ollama
-    restart: unless-stopped
     ports:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
     networks:
       - aisignal-network
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8G
     environment:
-      - OLLAMA_HOST=0.0.0.0
+      - OLLAMA_HOST=0.0.0.0:11434
     healthcheck:
-      test: [ "CMD", "ollama", "list" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:11434/api/tags" ]
       interval: 30s
       timeout: 10s
       retries: 3
 
-  # Postgres Database (Local)
-  postgres:
-    image: pgvector/pgvector:pg15
-    container_name: aisignal-postgres
-    restart: unless-stopped
-    ports:
-      - "5432:5432"
-    environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
-      - POSTGRES_DB=aisignal
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
-    networks:
-      - aisignal-network
-    healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  # SNS Stealth Crawler (Tier 2 Engine)
+  # ========================================
+  # Stealth Crawler
+  # ========================================
   stealth-crawler:
-    build: ./stealth-crawler
-    container_name: aisignal-stealth-crawler
-    restart: unless-stopped
+    build:
+      context: ./stealth-crawler
+      dockerfile: Dockerfile
+    container_name: aisignal-crawler
     environment:
       - NODE_ENV=production
-      - DISPLAY=:99
+      - REDIS_URL=redis://redis:6379
+    ports:
+      - "3000:3000"
     volumes:
-      - ./sessions:/app/sessions
+      - ./stealth-crawler:/app
+      - /app/node_modules
     networks:
       - aisignal-network
     depends_on:
-      - redis
-      - postgres
-
-  # Cloudflare Tunnel for External Access
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: aisignal-tunnel
-    restart: unless-stopped
-    command: tunnel --no-autoupdate run
-    environment:
-      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
-    networks:
-      - aisignal-network
+      redis:
+        condition: service_healthy
 
 networks:
   aisignal-network:
     driver: bridge
 
 volumes:
-  n8n_data:
+  postgres_data:
     driver: local
   redis_data:
     driver: local
-  ollama_data:
+  n8n_data:
     driver: local
-  postgres_data:
+  ollama_data:
     driver: local

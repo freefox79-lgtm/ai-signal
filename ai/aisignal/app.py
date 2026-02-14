@@ -2,6 +2,7 @@ import streamlit as st
 import os
 from dotenv import load_dotenv
 from components.ui_elements import render_header
+from components.cyberpunk_theme import apply_cyberpunk_theme
 from pages import home, intelligence, oracle, wiki, dashboard
 
 # 🎯 Environment Setup
@@ -15,11 +16,8 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-def local_css(file_name):
-    with open(file_name) as f:
-        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-
-local_css("styles/cyberpunk.css")
+# 🌌 네오-사이버펑크 오로라 테마 적용
+apply_cyberpunk_theme()
 
 # 🛰️ Header Implementation
 render_header()

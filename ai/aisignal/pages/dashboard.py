@@ -8,7 +8,13 @@ DB_URL = os.getenv("DATABASE_URL")
 
 def get_mcp_status_from_db():
     try:
-        conn = psycopg2.connect(DB_URL)
+        if not DB_URL:
+            return []
+        # Smart SSL detection
+        if 'supabase' in DB_URL:
+            conn = psycopg2.connect(DB_URL, sslmode='require')
+        else:
+            conn = psycopg2.connect(DB_URL)
         cur = conn.cursor()
         cur.execute("SELECT server_name, status, last_health_check FROM mcp_status;")
         data = cur.fetchall()
