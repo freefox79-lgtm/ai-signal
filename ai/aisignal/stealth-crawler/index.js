@@ -84,7 +84,10 @@ async function scrapeSNS(platform, query) {
         } else if (platform === 'community') {
             const targets = [
                 { name: 'DCInside', url: `https://search.dcinside.com/combine/q/${encodeURIComponent(query)}` },
-                { name: 'FMKorea', url: `https://www.fmkorea.com/search.php?mid=home&search_keyword=${encodeURIComponent(query)}` }
+                { name: 'FMKorea', url: `https://www.fmkorea.com/search.php?mid=home&search_keyword=${encodeURIComponent(query)}` },
+                { name: '더쿠', url: `https://theqoo.net/square/search?keyword=${encodeURIComponent(query)}` },
+                { name: '루리웹', url: `https://bbs.ruliweb.com/community/board/300143?search_type=subject_content&search_key=${encodeURIComponent(query)}` },
+                { name: '클리앙', url: `https://www.clien.net/service/search?q=${encodeURIComponent(query)}` }
             ];
             for (const target of targets) {
                 await page.goto(target.url, { waitUntil: 'networkidle2' });
@@ -93,6 +96,21 @@ async function scrapeSNS(platform, query) {
                     platform: target.name,
                     content: `[Stealth] '${query}' 관련 커뮤니티 반응 수집`,
                     source: "Community Stealth Engine",
+                    timestamp: new Date().toISOString()
+                });
+            }
+        } else if (platform === 'shopping') {
+            const targets = [
+                { name: 'Hypebeast', url: `https://hypebeast.com/search?s=${encodeURIComponent(query)}` },
+                { name: 'Kream', url: `https://kream.co.kr/search?keyword=${encodeURIComponent(query)}` }
+            ];
+            for (const target of targets) {
+                await page.goto(target.url, { waitUntil: 'networkidle2' });
+                await randomDelay(1500, 3500);
+                results.push({
+                    platform: target.name,
+                    content: `[Stealth] '${query}' 관련 쇼핑 트렌드 수집`,
+                    source: "Shopping Stealth Engine",
                     timestamp: new Date().toISOString()
                 });
             }
@@ -135,6 +153,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 });
 
 async function main() {
+    // CLI 모드: node index.js <platform> <query>
+    if (process.argv.length > 2) {
+        const platform = process.argv[2];
+        const query = process.argv[3] || 'trending';
+
+        try {
+            const results = await scrapeSNS(platform, query);
+            console.log(JSON.stringify(results, null, 2));
+            process.exit(0);
+        } catch (error) {
+            console.error(JSON.stringify({ error: error.message }));
+            process.exit(1);
+        }
+    }
+
+    // MCP Server 모드
     const transport = new StdioServerTransport();
     await server.connect(transport);
     console.error("SNS Stealth Crawler MCP server running on stdio");
