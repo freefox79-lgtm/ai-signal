@@ -134,10 +134,10 @@ services:
       dockerfile: Dockerfile
     container_name: aisignal-app
     environment:
-      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres:5432/${DB_NAME:-aisignal}
-      - REDIS_HOST=redis
+      - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@aisignal-postgres:5432/${DB_NAME:-aisignal}
+      - REDIS_HOST=aisignal-redis
       - REDIS_PASSWORD=${REDIS_PASSWORD:-aisignal2026_secure}
-      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_BASE_URL=http://aisignal-ollama:11434
       - DB_MOCK_MODE=false
       - NAVER_CLIENT_ID=${NAVER_CLIENT_ID}
       - NAVER_CLIENT_SECRET=${NAVER_CLIENT_SECRET}

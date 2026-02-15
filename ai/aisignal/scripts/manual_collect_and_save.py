@@ -29,9 +29,10 @@ def save_market_data(conn, indices):
             # Ideally should be in market_indices table if created.
             insight = f"Value: {data.get('value')}, Change: {data.get('change')}, Trend: {data.get('trend')}"
             cur.execute("""
-                INSERT INTO signals (category, keyword, insight, agent, created_at, synced)
+                INSERT INTO signals (category, keyword, insight, agent, updated_at, synced)
                 VALUES (%s, %s, %s, %s, NOW(), FALSE)
-                ON CONFLICT DO NOTHING
+                ON CONFLICT (keyword) DO UPDATE 
+                SET insight = EXCLUDED.insight, updated_at = NOW(), synced = FALSE
             """, ('Market', key, insight, 'Jwem'))
     conn.commit()
     print(f"✅ Saved {len(indices)} market indices to DB")
@@ -41,10 +42,9 @@ def save_trends(conn, trends):
     with conn.cursor() as cur:
         for trend in trends:
             cur.execute("""
-                INSERT INTO raw_feeds (source, content, created_at, processed)
+                INSERT INTO raw_feeds (platform, raw_content, captured_at, processed)
                 VALUES (%s, %s, NOW(), FALSE)
-                ON CONFLICT DO NOTHING
-            """, (f"{trend.get('platform')} Trend", trend.get('content')))
+            """, (trend.get('platform', 'Unknown'), Json(trend)))
     conn.commit()
     print(f"✅ Saved {len(trends)} SNS trends to DB")
 

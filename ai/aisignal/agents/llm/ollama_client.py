@@ -37,14 +37,14 @@ class OllamaClient:
         base_url: str = None,
         default_model: str = "llama3.2:3b"
     ):
-        self.base_url = base_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+        self.base_url = base_url or os.getenv("OLLAMA_BASE_URL", "http://aisignal-ollama:11434")
         self.default_model = default_model
         
         # Redis 캐싱
         try:
             redis_pwd = os.getenv("REDIS_PASSWORD", "aisignal2026_secure")
             self.redis = redis.Redis(
-                host='localhost',
+                host=os.getenv("REDIS_HOST", "aisignal-redis"),
                 port=6379,
                 password=redis_pwd,
                 decode_responses=False

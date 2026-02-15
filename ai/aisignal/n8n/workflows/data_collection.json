@@ -25,6 +25,26 @@
         },
         {
             "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "hours",
+                            "hoursInterval": 1
+                        }
+                    ]
+                }
+            },
+            "name": "Schedule Trigger",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1,
+            "position": [
+                380,
+                40
+            ],
+            "id": "schedule-trigger-node"
+        },
+        {
+            "parameters": {
                 "dataType": "string",
                 "value1": "={{ $json.message.text }}",
                 "rules": {
@@ -52,6 +72,36 @@
         },
         {
             "parameters": {
+                "url": "http://api:8000/collect/market",
+                "method": "POST",
+                "options": {}
+            },
+            "name": "Collect Market",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 3,
+            "position": [
+                800,
+                40
+            ],
+            "id": "collect-market-node"
+        },
+        {
+            "parameters": {
+                "url": "http://api:8000/collect/trends",
+                "method": "POST",
+                "options": {}
+            },
+            "name": "Collect Trends",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 3,
+            "position": [
+                1000,
+                40
+            ],
+            "id": "collect-trends-node"
+        },
+        {
+            "parameters": {
                 "url": "http://api:8000/sync",
                 "method": "POST",
                 "options": {}
@@ -60,8 +110,8 @@
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 3,
             "position": [
-                800,
-                140
+                1200,
+                40
             ],
             "id": "a3b8d1b6-0b3b-4b1a-9c1a-1a2b3c4d5e6f"
         },
@@ -141,8 +191,8 @@
             "type": "n8n-nodes-base.httpRequest",
             "typeVersion": 3,
             "position": [
-                1000,
-                140
+                1400,
+                40
             ],
             "id": "d6ebf4e9-3e6e-7e4d-ce4d-4d5e6f7a8b9c"
         },
@@ -225,11 +275,22 @@
                 ]
             ]
         },
+        "Schedule Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Collect Market",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
         "Command Switch": {
             "main": [
                 [
                     {
-                        "node": "Trigger Sync",
+                        "node": "Collect Market",
                         "type": "main",
                         "index": 0
                     }
@@ -244,6 +305,28 @@
                 [
                     {
                         "node": "Start Collection",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Collect Market": {
+            "main": [
+                [
+                    {
+                        "node": "Collect Trends",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Collect Trends": {
+            "main": [
+                [
+                    {
+                        "node": "Trigger Sync",
                         "type": "main",
                         "index": 0
                     }
