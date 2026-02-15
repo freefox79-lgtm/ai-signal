@@ -57,9 +57,9 @@ class APIConnectors:
             
             # Smart SSL detection
             if 'supabase' in db_url:
-                conn = psycopg2.connect(db_url, sslmode='require')
+                conn = psycopg2.connect(db_url, sslmode='require', connect_timeout=3)
             else:
-                conn = psycopg2.connect(db_url)
+                conn = psycopg2.connect(db_url, connect_timeout=3)
             
             with conn.cursor() as cur:
                 cur.execute("""
