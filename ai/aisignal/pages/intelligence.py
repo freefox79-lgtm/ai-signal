@@ -20,7 +20,7 @@ def get_live_data():
         
         if conn_local:
             with conn_local.cursor() as cur:
-                cur.execute("SELECT * FROM market_indices LIMIT 4")
+                cur.execute("SELECT name, value, change FROM market_indices LIMIT 4")
                 indices = cur.fetchall()
         
         if conn_cloud:
