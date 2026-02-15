@@ -5,11 +5,14 @@ Supabase 데이터 동기화 스크립트
 """
 
 import os
-import psycopg2
 import psycopg2.extras
 from dotenv import load_dotenv
 import argparse
 from datetime import datetime
+import sys
+
+# 중앙 집중식 DB 유틸리티 임포트
+from db_utils import get_db_connection
 
 # 환경 변수 로드
 load_dotenv('.env.local')
@@ -23,9 +26,9 @@ SYNC_INTERVALS = {
 class SupabaseSync:
     def __init__(self):
         # 로컬 DB 연결
-        self.local_conn = psycopg2.connect(os.getenv('DATABASE_URL'))
+        self.local_conn = get_db_connection(os.getenv('DATABASE_URL'))
         # Supabase DB 연결
-        self.supabase_conn = psycopg2.connect(os.getenv('SUPABASE_DATABASE_URL'))
+        self.supabase_conn = get_db_connection(os.getenv('SUPABASE_DATABASE_URL'))
         
         print("✅ 데이터베이스 연결 성공\n")
     

@@ -17,6 +17,9 @@ class StealthSessionManager:
         self.db_url = os.getenv("DATABASE_URL")
         if not self.db_url:
             raise ValueError("DATABASE_URL not set in environment")
+        
+        from db_utils import get_db_connection
+        self.get_db_connection = get_db_connection
     
     def get_session(self, source_name):
         """

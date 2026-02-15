@@ -35,7 +35,7 @@ class Orchestrator:
         self.jwem.update_prices()
         
         # 3. Persist Trends locally for Syncing
-        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        conn = get_db_connection(os.getenv("DATABASE_URL"))
         with conn.cursor() as cur:
             for trend in trends:
                 cur.execute("""

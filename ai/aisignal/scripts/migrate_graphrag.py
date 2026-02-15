@@ -4,9 +4,12 @@ GraphRAG 마이그레이션 스크립트
 knowledge_relationships 테이블 생성
 """
 
-import psycopg2
 import os
+import psycopg2
 from dotenv import load_dotenv
+
+# 중앙 집중식 DB 유틸리티 임포트
+from db_utils import get_db_connection
 
 load_dotenv(".env.local")
 
@@ -14,7 +17,11 @@ def run_migration():
     """GraphRAG 마이그레이션 실행"""
     
     db_url = os.getenv("DATABASE_URL")
-    conn = psycopg2.connect(db_url)
+    try:
+        conn = get_db_connection(db_url)
+    except Exception as e:
+        print(f"❌ 데이터베이스 연결 실패: {e}")
+        return
     cur = conn.cursor()
     
     print("=== GraphRAG 마이그레이션 시작 ===\n")

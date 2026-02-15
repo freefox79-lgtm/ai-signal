@@ -2,6 +2,8 @@ import streamlit as st
 import os, json
 import psycopg2
 from dotenv import load_dotenv
+import pandas as pd
+from db_utils import get_db_connection
 
 load_dotenv()
 DB_URL = os.getenv("DATABASE_URL")
@@ -10,11 +12,7 @@ def get_mcp_status_from_db():
     try:
         if not DB_URL:
             return []
-        # Smart SSL detection
-        if 'supabase' in DB_URL:
-            conn = psycopg2.connect(DB_URL, sslmode='require')
-        else:
-            conn = psycopg2.connect(DB_URL)
+        conn = get_db_connection(DB_URL)
         cur = conn.cursor()
         cur.execute("SELECT server_name, status, last_health_check FROM mcp_status;")
         data = cur.fetchall()
@@ -25,11 +23,11 @@ def get_mcp_status_from_db():
         return []
 
 def show():
-    # 🎯 MOD-D 네온 헤더
+    # 🎯 회사현황 네온 헤더
     st.markdown("""
-        <div style="background: rgba(57, 255, 20, 0.05); padding: 20px; border-radius: 15px; border: 1px solid var(--acc-neon); margin-bottom: 30px;">
-            <h2 style="color: var(--acc-neon); margin: 0; text-shadow: 0 0 10px var(--acc-neon);">📊 시스템 대시보드 및 커맨드</h2>
-            <p style="color: #888; margin: 5px 0 0 0;">섹터: 코어 운영 | 상태: 정상</p>
+        <div style="background: rgba(57, 255, 0, 0.05); padding: 20px; border-radius: 15px; border: 1px solid var(--acc-neon); margin-bottom: 30px;">
+            <h2 style="color: var(--acc-neon); margin: 0; text-shadow: 0 0 10px var(--acc-neon);">📈 회사현황: 시스템 운영 및 자율 인프라</h2>
+            <p style="color: #888; margin: 5px 0 0 0;">메트릭 요약, MCP 서버 상태 및 자율 윤리 로그 모니터링 | 상태: 정상</p>
         </div>
     """, unsafe_allow_html=True)
 

@@ -10,6 +10,9 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# 중앙 집중식 DB 유틸리티 임포트
+from db_utils import get_db_connection
+
 def check_postgresql():
     """PostgreSQL 연결 확인"""
     print("\n=== 1. PostgreSQL 연결 확인 ===")
@@ -19,7 +22,7 @@ def check_postgresql():
         load_dotenv(".env.local")
         
         db_url = os.getenv("DATABASE_URL")
-        conn = psycopg2.connect(db_url)
+        conn = get_db_connection(db_url)
         cur = conn.cursor()
         
         # 버전 확인

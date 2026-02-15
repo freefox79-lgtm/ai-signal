@@ -25,7 +25,7 @@ class JwemPortfolio:
     }
     
     def __init__(self):
-        self.conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        self.conn = get_db_connection(os.getenv("DATABASE_URL"))
         self.connectors = APIConnectors()
         # 쥄의 마스터 포트폴리오 (18개 종목 예시)
         self.target_stocks = ["AAPL", "TSLA", "NVDA", "MSFT", "GOOGL", "AMZN", "META", "BRK.B", "V", "JNJ", "WMT", "PG", "MA", "XOM", "UNH", "HD", "PFE", "DIS"]

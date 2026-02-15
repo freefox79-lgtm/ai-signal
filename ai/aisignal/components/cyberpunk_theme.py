@@ -59,10 +59,28 @@ def apply_cyberpunk_theme():
             font-family: 'Roboto Mono', monospace;
         }
         
-        /* Main content area */
+        /* Main content area - Centered Structured Layout (Naver style) */
         .main .block-container {
-            padding-top: 2rem;
-            padding-bottom: 2rem;
+            max-width: 1200px !important;
+            margin: 0 auto !important;
+            padding-top: 0 !important; /* Phase 3: Absolute zero */
+            padding-bottom: 5rem;
+            padding-left: 2rem;
+            padding-right: 2rem;
+        }
+
+        /* Root container override for extreme tightness */
+        [data-testid="stAppViewContainer"] > section:nth-child(2) > div:nth-child(1) {
+            padding-top: 0 !important;
+        }
+
+        /* Responsive adjustments for smaller screens */
+        @media (max-width: 1200px) {
+            .main .block-container {
+                max-width: 100% !important;
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
         }
         
         /* ========================================
@@ -122,10 +140,63 @@ def apply_cyberpunk_theme():
         }
         
         h1 {
-            font-size: 3rem;
+            font-size: 2.2rem !important; /* Reduced from 3rem to save space */
             font-weight: 900;
             text-transform: uppercase;
+            margin-bottom: 0 !important;
         }
+
+        /* ... (other styles) ... */
+
+        .fixed-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 99999;
+            background: rgba(10, 14, 39, 0.95);
+            backdrop-filter: blur(12px);
+            padding-top: 10px;
+            padding-bottom: 10px;
+            text-align: center;
+            border-bottom: 1px solid rgba(0, 255, 249, 0.1);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+            height: 85px; /* Explicit Height */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        
+        /* Spacer covers Header (85px) + Fixed Tabs (~55px) */
+        .header-spacer {
+            height: 140px !important; 
+            width: 100%;
+            display: block;
+        }
+        
+        /* Fixed Tabs (Always on Top) */
+        div[data-baseweb="tab-list"], .stTabs [data-baseweb="tab-list"] {
+            position: fixed !important;
+            top: 85px !important; /* Immediately below header */
+            left: 0;
+            width: 100%;
+            z-index: 99990;
+            background: rgba(10, 14, 39, 0.95);
+            padding-top: 5px;
+            padding-bottom: 5px;
+            margin-top: 0 !important;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            border-radius: 0 0 10px 10px;
+            transition: top 0.2s ease;
+            display: flex !important;
+            justify-content: center !important;
+        }
+        
+        /* Fix for scroll anchor offset */
+        [data-testid="stVerticalBlock"] {
+            scroll-margin-top: 150px;
+        }
+
         
         /* ========================================
            Cards & Containers
@@ -161,29 +232,34 @@ def apply_cyberpunk_theme():
         /* ========================================
            Buttons
            ======================================== */
-        .stButton > button {
+         .stButton > button {
             background: linear-gradient(
                 135deg,
                 var(--neon-cyan),
                 var(--neon-magenta)
-            );
-            color: var(--bg-dark);
-            border: none;
-            border-radius: 5px;
-            padding: 12px 24px;
-            font-family: 'Orbitron', sans-serif;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            box-shadow: 0 0 20px var(--accent-glow);
-            transition: all 0.3s ease;
-            cursor: pointer;
+            ) !important;
+            color: #000 !important; /* 고대비 블랙 텍스트 */
+            border: none !important;
+            border-radius: 5px !important;
+            height: 45px !important;
+            padding: 0 24px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-family: 'Orbitron', sans-serif !important;
+            font-weight: 800 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 2px !important;
+            box-shadow: 0 0 20px var(--accent-glow) !important;
+            transition: all 0.3s ease !important;
+            cursor: pointer !important;
         }
         
         .stButton > button:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 5px 30px var(--accent-glow-strong);
-            animation: pulse-glow 2s ease-in-out infinite;
+            transform: translateY(-3px) scale(1.05) !important;
+            box-shadow: 0 5px 35px var(--accent-glow-strong) !important;
+            background: #fff !important; /* 호버 시 화이트 플래시 효과 */
+            color: #000 !important;
         }
         
         .stButton > button:active {
@@ -201,13 +277,28 @@ def apply_cyberpunk_theme():
             border-radius: 5px;
             color: var(--text-primary);
             font-family: 'Roboto Mono', monospace;
-            padding: 10px;
+            padding: 10px 15px;
+            height: 45px !important; /* Standardized height */
         }
         
         .stTextInput > div > div > input:focus,
         .stTextArea > div > div > textarea:focus {
             border-color: var(--neon-magenta);
             box-shadow: 0 0 15px var(--accent-glow);
+        }
+
+        /* High contrast placeholders */
+        ::placeholder {
+            color: var(--neon-cyan) !important;
+            opacity: 0.8 !important;
+        }
+        ::-webkit-input-placeholder {
+            color: var(--neon-cyan) !important;
+            opacity: 0.8 !important;
+        }
+        :-ms-input-placeholder {
+            color: var(--neon-cyan) !important;
+            opacity: 0.8 !important;
         }
         
         /* ========================================
@@ -258,17 +349,16 @@ def apply_cyberpunk_theme():
             background: var(--bg-card);
         }
         
-        /* ========================================
-           Sidebar
-           ======================================== */
-        section[data-testid="stSidebar"] {
-            background: linear-gradient(
-                180deg,
-                var(--bg-darker) 0%,
-                var(--bg-dark) 100%
-            );
-            border-right: 2px solid var(--neon-cyan);
-            box-shadow: 5px 0 20px rgba(0, 255, 249, 0.2);
+        section[data-testid="stSidebar"], 
+        [data-testid="stSidebarCollapseButton"],
+        [data-testid="collapsedControl"],
+        .st-emotion-cache-12w0qpk,
+        .st-emotion-cache-6qob1r,
+        .stAppDeploy,
+        .stMainMenu,
+        .stStatusWidget,
+        header[data-testid="stHeader"] {
+            display: none !important;
         }
         
         section[data-testid="stSidebar"] .stMarkdown h1,
@@ -417,6 +507,95 @@ def apply_cyberpunk_theme():
             letter-spacing: 1px;
             box-shadow: 0 0 15px var(--accent-glow);
         }
+
+        /* Integrated Ranking UI Styles (Column-based) */
+        .ranking-box {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid rgba(0, 255, 249, 0.1);
+            border-radius: 12px;
+            padding: 10px 15px;
+            margin-bottom: 12px;
+            transition: all 0.3s ease;
+            display: flex; /* Fallback for layout consistency */
+            align-items: center;
+        }
+        .ranking-box:hover {
+            background: rgba(0, 255, 249, 0.05);
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 20px rgba(0, 255, 249, 0.15);
+        }
+        .rank-number-flat {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.6rem;
+            font-weight: 900;
+            color: var(--neon-cyan);
+            text-shadow: 0 0 10px var(--neon-cyan);
+            margin-top: 5px;
+        }
+        .rank-keyword-flat {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 2px;
+        }
+        .rank-summary-flat {
+            font-size: 0.85rem;
+            color: #aaa;
+            line-height: 1.3;
+        }
+        
+        .metric-label-flat {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.6rem;
+            color: var(--neon-cyan);
+            text-transform: uppercase;
+        }
+        .metric-bar-flat {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+            margin: 4px 0;
+        }
+        .metric-fill-flat {
+            height: 100%;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
+        }
+
+        /* Primary Button Override for Deep Visibility */
+        .stButton > button[kind="primary"] {
+            background: #00fff9 !important;
+            background-image: linear-gradient(135deg, #00fff9 0%, #00d4ff 100%) !important;
+            color: #000 !important;
+            border: none !important;
+            font-weight: 950 !important;
+            font-family: 'Orbitron', sans-serif !important;
+            text-transform: uppercase !important;
+            letter-spacing: 2px !important;
+            box-shadow: 0 0 20px #00fff9 !important;
+            border-radius: 8px !important;
+            height: auto !important;
+            padding: 8px 15px !important;
+            transition: all 0.3s ease !important;
+        }
+        .stButton > button[kind="primary"]:hover {
+            transform: scale(1.1) !important;
+            box-shadow: 0 0 40px #00fff9 !important;
+            background: #fff !important; /* Flash effect */
+        }
+        
+        /* Secondary/Ghost Style for other buttons */
+        .stButton > button[kind="secondary"] {
+            background: rgba(0, 212, 255, 0.05) !important;
+            border: 1px solid var(--neon-cyan) !important;
+            color: var(--neon-cyan) !important;
+        }
+
+        /* ========================================
+           Sticky Header & Tabs
+           ======================================== */
+        .fixed-header {
+            position: fixed;
     </style>
     """, unsafe_allow_html=True)
 

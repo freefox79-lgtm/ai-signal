@@ -3,17 +3,20 @@ import psycopg2
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
+# 중앙 집중식 DB 유틸리티 임포트
+from db_utils import get_db_connection
+
 load_dotenv(".env.local")
 
 # DB Connections
-LOCAL_DB_URL = os.getenv("DATABASE_URL")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
 class SyncWorker:
-    def __init__(self):
+    def __init__(self, local_db_url=None):
         self.supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY) if SUPABASE_URL != "your_supabase_url_here" else None
-        self.conn = psycopg2.connect(LOCAL_DB_URL)
+        LOCAL_DB_URL = local_db_url or os.getenv("DATABASE_URL")
+        self.conn = get_db_connection(LOCAL_DB_URL)
 
     def fetch_local_signals(self):
         """Fetches raw signals from local PG that haven't been synced."""

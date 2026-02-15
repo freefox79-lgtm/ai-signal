@@ -9,15 +9,33 @@ GraphRAG 지식 그래프
 
 import os
 import psycopg2
-from typing import List, Dict, Optional, Tuple
-from agents.llm.ollama_client import get_ollama_client
+import json
+from typing import List, Dict, Any, Optional, Tuple
+from datetime import datetime
+import numpy as np
+import networkx as nx
+from dotenv import load_dotenv
+
+# 중앙 집중식 DB 유틸리티 임포트
+from db_utils import get_db_connection
 
 class KnowledgeGraph:
-    """지식 그래프 관리"""
-    
+    """
+    지식 그래프 엔티티 및 관계 저장/조회 클래스
+    """
     def __init__(self, db_url: str = None):
+        """
+        초기화 및 DB 연결
+        """
         self.db_url = db_url or os.getenv("DATABASE_URL")
-        self.conn = psycopg2.connect(self.db_url)
+        try:
+            # 중앙 집중식 연결 유틸리티 사용 (Supabase SSL/Pooler 대응)
+            self.conn = get_db_connection(self.db_url)
+        except Exception as e:
+            print(f"KnowledgeGraph DB 연결 실패: {e}")
+            raise
+        
+        from agents.graphrag.embeddings import get_ollama_client
         self.ollama = get_ollama_client()
     
     def add_entity(

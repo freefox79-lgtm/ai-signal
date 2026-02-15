@@ -19,10 +19,10 @@ def check_supabase():
     except Exception as e:
         return f"❌ Supabase Error: {e}"
 
-def check_local_db():
+def check_postgres():
     db_url = os.getenv("DATABASE_URL")
     try:
-        conn = psycopg2.connect(db_url)
+        conn = get_db_connection(db_url)
         conn.close()
         return "✅ Local PostgreSQL Connected"
     except Exception as e:

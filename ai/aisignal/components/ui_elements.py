@@ -13,8 +13,9 @@ def render_cyber_card(title, content, category="green"):
 
 def render_header():
     st.markdown("""
-        <div style="text-align: center; padding: 20px 0;">
-            <h1 class="neon-text" style="color: var(--acc-green); font-size: 3rem; margin-bottom: 0;">AI SIGNAL Inc.</h1>
-            <p style="color: #888; letter-spacing: 5px; font-weight: 300;">하이브리드 인텔리전스 인프라</p>
+        <div class="fixed-header">
+            <h1 class="neon-text" style="color: var(--acc-green); font-size: 2.8rem; margin-bottom: 0; filter: drop-shadow(0 0 10px var(--acc-green));">AI SIGNAL Inc.</h1>
+            <p style="color: #666; letter-spacing: 8px; font-weight: 300; text-transform: uppercase; font-family: 'Orbitron', sans-serif; font-size: 0.75rem; margin-top: -8px;">Hybrid Intelligence Infrastructure</p>
         </div>
+        <div class="header-spacer"></div>
     """, unsafe_allow_html=True)

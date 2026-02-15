@@ -5,21 +5,31 @@ from components.graph_visualizer import GraphVisualizer
 import traceback
 
 def show():
-    # Initialize
+    # GraphRAG 컴포넌트 초기화
     try:
         kg = KnowledgeGraph()
         hg = HyperlinkGenerator()
         gv = GraphVisualizer()
     except Exception as e:
         st.error(f"GraphRAG 초기화 실패: {e}")
-        st.info("데이터베이스 연결을 확인하세요.")
+        
+        # 상세 가이드 제공
+        with st.expander("🔍 데이터베이스 연결 트러블슈팅"):
+            st.info("""
+            **연결 실패 시 확인 사항:**
+            1. **로컬 개발 시**: 도커의 `aisignal-postgres` 컨테이너가 실행 중인지 확인하세요.
+            2. **Supabase 연결 시**: `.env.local`의 `DATABASE_URL`에 `sslmode=require`가 포함되어 있는지 확인하세요.
+            3. **하이브리드 모드(Option 2)**: 외부에서 접속 중이라면 맥미니의 **Cloudflare 터널**이 실행 중인지 확인하세요.
+               - 실행 명령어: `cloudflared tunnel run aisignal-v4-tunnel`
+            4. **네트워크**: 현재 네트워크 환경에서 Supabase 포트(5432 또는 6543) 접근이 차단되어 있지 않은지 확인하세요.
+            """)
         return
     
-    # 🎯 MOD-W 네온 헤더
+    # 🎯 이슈근원지 네온 헤더
     st.markdown("""
         <div style="background: rgba(0, 212, 255, 0.05); padding: 20px; border-radius: 15px; border: 1px solid var(--acc-blue); margin-bottom: 30px;">
-            <h2 style="color: var(--acc-blue); margin: 0; text-shadow: 0 0 10px var(--acc-blue);">🌐 MOD-W: GRAPHRAG 지식 지도</h2>
-            <p style="color: #888; margin: 5px 0 0 0;">섹터: 지식 합성 | 상태: 활성화</p>
+            <h2 style="color: var(--acc-blue); margin: 0; text-shadow: 0 0 10px var(--acc-blue);">🔍 이슈근원지: GraphRAG 지식 아카이브</h2>
+            <p style="color: #888; margin: 5px 0 0 0;">데이터 소스 관계 맵핑 및 엔티티 추적 시스템 | 상태: 활성화</p>
         </div>
     """, unsafe_allow_html=True)
     

@@ -4,6 +4,7 @@ import os
 from components.ui_elements import render_cyber_card
 from api_connectors import APIConnectors
 from dotenv import load_dotenv
+from db_utils import get_db_connection
 
 load_dotenv()
 DB_URL = os.getenv("DATABASE_URL")
@@ -13,11 +14,8 @@ def get_live_data():
     try:
         if not DB_URL:
             return [], []
-        # Smart SSL detection
-        if 'supabase' in DB_URL:
-            conn = psycopg2.connect(DB_URL, sslmode='require')
-        else:
-            conn = psycopg2.connect(DB_URL)
+        # Use the utility function to get the database connection
+        conn = get_db_connection(DB_URL)
         with conn.cursor() as cur:
             # Fetch Jwem's Portfolio
             cur.execute("SELECT stock_code, current_price, profit_rate FROM jwem_portfolio LIMIT 5")
@@ -32,11 +30,11 @@ def get_live_data():
         return [], []
 
 def show():
-    # 🎯 MOD-T 네온 헤더
+    # 🎯 에이전트스페이스 네온 헤더
     st.markdown("""
         <div style="background: rgba(0, 212, 255, 0.05); padding: 20px; border-radius: 15px; border: 1px solid var(--acc-blue); margin-bottom: 30px;">
-            <h2 style="color: var(--acc-blue); margin: 0; text-shadow: 0 0 10px var(--acc-blue);">🧠 MOD-T: 트윈 인텔리전스 분석</h2>
-            <p style="color: #888; margin: 5px 0 0 0;">페르소나: 쥄 (로고스) & 쥐핏 (파토스) | 상태: 동기화됨</p>
+            <h2 style="color: var(--acc-blue); margin: 0; text-shadow: 0 0 10px var(--acc-blue);">🤖 에이전트스페이스: 지능형 협업 분석</h2>
+            <p style="color: #888; margin: 5px 0 0 0;">쥄(금융/매크로) & 쥐핏(트렌드/SNS) AI 에이전트 브리핑 | 상태: 동기화됨</p>
         </div>
     """, unsafe_allow_html=True)
 

@@ -1,18 +1,67 @@
 import streamlit as st
 
 def show():
-    # 🎯 MOD-O 네온 헤더
+    # 🎯 핫이슈 네온 헤더
     st.markdown("""
         <div style="background: rgba(157, 0, 255, 0.05); padding: 20px; border-radius: 15px; border: 1px solid var(--acc-purple); margin-bottom: 30px;">
-            <h2 style="color: var(--acc-purple); margin: 0; text-shadow: 0 0 10px var(--acc-purple);">🔮 MOD-O: 오라클 예측</h2>
-            <p style="color: #888; margin: 5px 0 0 0;">섹터: 확률 마켓 | 상태: 퀀텀 싱크</p>
+            <h2 style="color: var(--acc-purple); margin: 0; text-shadow: 0 0 10px var(--acc-purple);">🔥 핫이슈: 지능형 시장 신호와 예측</h2>
+            <p style="color: #888; margin: 5px 0 0 0;">실시간 고위험/고수익 시그널 및 미래 예측 데이터 분석 | 상태: 퀀텀 싱크</p>
         </div>
     """, unsafe_allow_html=True)
 
-    tab_market, tab_leaders = st.tabs(["📊 활성 마켓", "🏆 탑 예측자"])
+    # Sub-tab Navigation (Radio as Description Boxes)
+    st.markdown("""
+    <style>
+        /* Hide default radio style */
+        .stRadio > div {
+            flex-direction: row;
+            justify-content: center;
+            gap: 20px;
+        }
+        .stRadio label {
+            background: rgba(30, 20, 50, 0.6);
+            border: 1px solid rgba(157, 0, 255, 0.3);
+            border-radius: 15px;
+            padding: 15px 30px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+            width: 300px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .stRadio label:hover {
+            background: rgba(157, 0, 255, 0.1);
+            border-color: var(--acc-purple);
+            transform: translateY(-2px);
+        }
+        /* Selected State */
+        .stRadio div[role="radiogroup"] > label[data-baseweb="radio"] > div:first-child {
+            display: none; /* Hide default radio circle */
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # Custom "Description Box" Sub-menu
+    selected_oracle_tab = st.radio(
+        "Oracle Section Selection",
+        ["📊 활성 마켓 (Active Market)", "🏆 탑 예측자 (Elite Predictors)"],
+        horizontal=True,
+        label_visibility="collapsed",
+        key="oracle_radio"
+    )
+
+    st.markdown("---")
     
-    with tab_market:
-        st.write("### 🛰️ 라이브 예측 노드")
+    # 📊 활성 마켓 (Market) Content
+    if "활성 마켓" in selected_oracle_tab:
+        st.markdown("""
+        <div style="background: rgba(157, 0, 255, 0.05); padding: 20px; border-radius: 10px; border: 1px solid var(--acc-purple); margin-bottom: 30px; text-align: center;">
+            <h3 style="color: var(--acc-purple); margin: 0;">🛰️ 라이브 예측 노드 (Live Nodes)</h3>
+            <p style="color: #ccc; margin-top: 5px;">High Risk/Reward Signals | Real-time Market Prediction</p>
+        </div>
+        """, unsafe_allow_html=True)
         
         # 마켓 카드 1
         st.markdown("""
@@ -44,8 +93,15 @@ def show():
             </div>
         """, unsafe_allow_html=True)
 
-    with tab_leaders:
-        st.write("### 💎 엘리트 예측자")
+    # 🏆 탑 예측자 (Leaders) Content
+    elif "탑 예측자" in selected_oracle_tab:
+        st.markdown("""
+        <div style="background: rgba(255, 215, 0, 0.05); padding: 20px; border-radius: 10px; border: 1px solid #FFD700; margin-bottom: 30px; text-align: center;">
+            <h3 style="color: #FFD700; margin: 0;">💎 엘리트 예측자 (Elite Predictors)</h3>
+            <p style="color: #ccc; margin-top: 5px;">Top Accuracy Rankers | Reputation Leaderboard</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
         st.table([
             {"순위": "01", "사용자": "CyberShaman_99", "정확도": "96.4%", "포인트": "12,450", "트렌드": "🚀"},
             {"순위": "02", "사용자": "NeonVortex", "정확도": "89.2%", "포인트": "8,120", "트렌드": "📈"},

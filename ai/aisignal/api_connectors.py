@@ -2,7 +2,12 @@ import os
 import requests
 import json
 import time
+from datetime import datetime
+from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
+
+# 중앙 집중식 DB 유틸리티 임포트
+from db_utils import get_db_connection
 from cache_manager import CacheManager
 
 load_dotenv(".env.local")
@@ -15,18 +20,29 @@ class APIConnectors:
     Supports transparent Redis caching and basic rate limiting.
     """
     
-    def __init__(self):
+    def __init__(self, mode: str = None):
         self.naver_id = os.getenv("NAVER_CLIENT_ID")
         self.naver_secret = os.getenv("NAVER_CLIENT_SECRET")
         self.alpha_vantage_key = os.getenv("ALPHA_VANTAGE_API_KEY")
         self.fred_key = os.getenv("FRED_API_KEY")
-        self.mode = os.getenv("API_STATUS", "MOCK").upper()
+        self.mode = mode or os.getenv("API_STATUS", "MOCK").upper()
         self.last_call_time = 0.0
         self.min_interval = 1.0  # Default 1s between calls to avoid rate limits
         
+        self.db_url = os.getenv("DATABASE_URL")
+        
+        # 중앙 집중식 DB 유틸리티 사용
+        try:
+            if self.db_url:
+                self.conn = get_db_connection(self.db_url)
+            else:
+                self.conn = None
+        except Exception as e:
+            print(f"[APIConnectors] DB 연결 실패 (연결 없이 계속): {e}")
+            self.conn = None
+
         # Load source registry from database
         self.source_registry = self._load_source_registry()
-        self.db_url = os.getenv("DATABASE_URL")
     
     def _load_source_registry(self):
         """Load active API sources from database"""
@@ -78,14 +94,11 @@ class APIConnectors:
             return
         
         try:
-            import psycopg2
-            from datetime import datetime
-            
-            # Smart SSL detection
-            if 'supabase' in self.db_url:
-                conn = psycopg2.connect(self.db_url, sslmode='require')
+            # Use self.conn if available, otherwise try to connect
+            if self.conn:
+                conn = self.conn
             else:
-                conn = psycopg2.connect(self.db_url)
+                conn = get_db_connection(self.db_url)
             
             source_id = self.source_registry[source_name]['source_id']
             

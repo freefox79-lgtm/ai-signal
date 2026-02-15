@@ -104,13 +104,10 @@ class ScalingMonitor:
     def get_user_count(self) -> int:
         """사용자 수 조회 (Supabase)"""
         try:
-            import psycopg2
-            conn = psycopg2.connect(os.getenv("SUPABASE_DATABASE_URL"))
-            cur = conn.cursor()
-            cur.execute("SELECT COUNT(*) FROM users")
-            count = cur.fetchone()[0]
-            cur.close()
-            conn.close()
+            conn = get_db_connection(os.getenv("SUPABASE_DATABASE_URL"))
+            with conn.cursor() as cur:
+                cur.execute("SELECT COUNT(*) FROM users")
+                count = cur.fetchone()[0]
             return count
         except Exception as e:
             print(f"[ScalingMonitor] 사용자 수 조회 실패: {e}")

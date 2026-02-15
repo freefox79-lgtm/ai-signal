@@ -3,7 +3,7 @@ import os
 from dotenv import load_dotenv
 from components.ui_elements import render_header
 from components.cyberpunk_theme import apply_cyberpunk_theme
-from pages import home, intelligence, oracle, wiki, dashboard
+from pages import home, agent_space, oracle, wiki, dashboard
 
 # 🎯 Environment Setup
 load_dotenv()
@@ -25,17 +25,17 @@ render_header()
 # 🧭 네비게이션 시스템 (5개 탭 구조)
 tab_home, tab_intel, tab_oracle, tab_wiki, tab_dash = st.tabs([
     "🏠 홈", 
-    "🧠 인텔리전스", 
-    "🔮 오라클", 
-    "🌐 위키", 
-    "📊 대시보드"
+    "🤖 에이전트스페이스", 
+    "🔥 핫이슈", 
+    "🔍 이슈근원지", 
+    "📈 회사현황"
 ])
 
 with tab_home:
     home.show()
 
 with tab_intel:
-    intelligence.show()
+    agent_space.show()
 
 with tab_oracle:
     oracle.show()
@@ -48,4 +48,4 @@ with tab_dash:
 
 #  footer
 st.markdown("---")
-st.caption("AI SIGNAL Inc. | Powering Autonomous Data Sources | [Antigravity System]")
+st.caption("AI SIGNAL Inc. | Powering Autonomous Data Sources | [freefox System]")
