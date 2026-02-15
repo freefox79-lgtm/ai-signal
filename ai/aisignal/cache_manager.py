@@ -13,14 +13,21 @@ class CacheManager:
     """
     
     def __init__(self):
-        # Prefer REDIS_PASSWORD from .env.local
-        redis_pwd = os.getenv("REDIS_PASSWORD", "aisignal2026_secure")
-        self.r = redis.Redis(
-            host='localhost',
-            port=6379,
-            password=redis_pwd,
-            decode_responses=True
-        )
+        # Prefer REDIS_URL (Render/Production)
+        redis_url = os.getenv("REDIS_URL")
+        
+        if redis_url:
+            self.r = redis.from_url(redis_url, decode_responses=True)
+        else:
+            # Fallback to host/password (Local/Docker)
+            redis_pwd = os.getenv("REDIS_PASSWORD", "aisignal2026_secure")
+            redis_host = os.getenv("REDIS_HOST", "localhost")
+            self.r = redis.Redis(
+                host=redis_host,
+                port=6379,
+                password=redis_pwd,
+                decode_responses=True
+            )
 
     def set_signal(self, key, data, source="unknown", expiry=3600):
         """Cache a signal with automatic metadata (timestamp, source)."""

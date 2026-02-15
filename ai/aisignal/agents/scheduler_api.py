@@ -9,9 +9,28 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + '/..')
 
 # Import the collection logic
 from agents.jwem.market_analyzer import JwemMarketAnalyzer
+from agents.jfit.trend_hunter import JfitTrendHunter
 from db_utils import get_db_connection
-from scripts.manual_collect_and_save import save_market_data, save_trends
-from scripts.sync_to_supabase import SupabaseSync
+
+# ... (Previous imports)
+
+# inside @app.post("/collect/trends")
+    try:
+        print("[API] Starting Trend Collection (Real Crawler)...")
+        conn = get_db_connection()
+        
+        # Real Crawler Activation
+        jfit = JfitTrendHunter()
+        real_trends = jfit.hunt_trends("Trending") # Query will be overridden by Google Trends
+        
+        if real_trends:
+            save_trends(conn, real_trends)
+            count = len(real_trends)
+        else:
+            print("[API] No trends found, check crawler logs.")
+            count = 0
+        
+        conn.close()
 
 app = FastAPI(title="AI Signal Scheduler API")
 
@@ -90,12 +109,18 @@ async def collect_trends():
         print("[API] Starting Trend Collection...")
         conn = get_db_connection()
         
-        mock_trends = [
-            {"platform": "X", "content": f"Trend check at {datetime.now().strftime('%H:%M')}: AI Adoption"},
-            {"platform": "Instagram", "content": "#DailyAIUpdate"},
-            {"platform": "Community", "content": "Development in progress"}
-        ]
-        save_trends(conn, mock_trends)
+        # Real Crawler Activation
+        jfit = JfitTrendHunter()
+        # Query is now dynamic inside hunt_trends (via Google Trends)
+        real_trends = jfit.hunt_trends("Auto_Daily_Trend") 
+        
+        if real_trends:
+            save_trends(conn, real_trends)
+            count = len(real_trends)
+            print(f"[API] Saved {count} real trends.")
+        else:
+            print("[API] No trends collected.")
+            count = 0
         
         conn.close()
         return {

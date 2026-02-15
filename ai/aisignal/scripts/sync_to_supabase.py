@@ -156,6 +156,80 @@ class SupabaseSync:
             self.supabase_conn.rollback()
             return 0
     
+    def sync_market_indices(self, minutes=60):
+        """market_indices 테이블 동기화"""
+        try:
+            local_cur = self.local_conn.cursor()
+            supabase_cur = self.supabase_conn.cursor()
+            
+            # Fetch all indices from local
+            local_cur.execute("SELECT name, value, change, updated_at FROM market_indices")
+            rows = local_cur.fetchall()
+            
+            if not rows:
+                return 0
+            
+            upsert_query = """
+                INSERT INTO market_indices (name, value, change, updated_at)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (name) 
+                DO UPDATE SET
+                    value = EXCLUDED.value,
+                    change = EXCLUDED.change,
+                    updated_at = EXCLUDED.updated_at
+            """
+            
+            for row in rows:
+                supabase_cur.execute(upsert_query, row)
+            
+            self.supabase_conn.commit()
+            print(f"  ✅ {len(rows)}개 시장 지표 동기화 완료")
+            return len(rows)
+        except Exception as e:
+            print(f"  ❌ 시장 지표 동기화 실패: {e}")
+            return 0
+
+    def sync_issues(self, minutes=60):
+        """issues 테이블 동기화"""
+        try:
+            local_cur = self.local_conn.cursor()
+            supabase_cur = self.supabase_conn.cursor()
+            
+            # Fetch issues
+            local_cur.execute("""
+                SELECT id, category, title, pros_count, cons_count, 
+                       agent_pros_count, agent_cons_count, is_closed, updated_at
+                FROM issues
+                WHERE updated_at > NOW() - INTERVAL '%s minutes'
+            """, (minutes,))
+            rows = local_cur.fetchall()
+            
+            if not rows:
+                return 0
+
+            upsert_query = """
+                INSERT INTO issues (id, category, title, pros_count, cons_count, 
+                                  agent_pros_count, agent_cons_count, is_closed, updated_at)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (id) 
+                DO UPDATE SET
+                    pros_count = EXCLUDED.pros_count,
+                    cons_count = EXCLUDED.cons_count,
+                    agent_pros_count = EXCLUDED.agent_pros_count,
+                    agent_cons_count = EXCLUDED.agent_cons_count,
+                    updated_at = EXCLUDED.updated_at
+            """
+            
+            for row in rows:
+                supabase_cur.execute(upsert_query, row)
+            
+            self.supabase_conn.commit()
+            print(f"  ✅ {len(rows)}개 이슈 동기화 완료")
+            return len(rows)
+        except Exception as e:
+            print(f"  ❌ 이슈 동기화 실패: {e}")
+            return 0
+
     def sync_all(self, mode='auto'):
         """전체 동기화"""
         total_synced = 0
@@ -163,19 +237,22 @@ class SupabaseSync:
         print(f"=== 데이터 동기화 시작 ({mode} mode) ===")
         print(f"시간: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
         
+        minutes_short = 1440 if mode == 'all' else SYNC_INTERVALS['signals']
+        minutes_long = 1440 if mode == 'all' else SYNC_INTERVALS['data_sources']
+        
         if mode in ['auto', 'signals', 'all']:
-            print("[1] 시그널 동기화 (15분 간격)")
-            minutes = 1440 if mode == 'all' else SYNC_INTERVALS['signals']
-            total_synced += self.sync_signals(minutes)
+            print("[1] 시그널 & 이슈 동기화")
+            total_synced += self.sync_signals(minutes_short)
+            total_synced += self.sync_issues(minutes_short)
             print()
         
         if mode in ['auto', 'data_sources', 'all']:
-            print("[2] 데이터 소스 동기화 (1시간 간격)")
-            minutes = 1440 if mode == 'all' else SYNC_INTERVALS['data_sources']
-            total_synced += self.sync_data_sources(minutes)
+            print("[2] 데이터 소스 & 시장 지표 동기화")
+            total_synced += self.sync_data_sources(minutes_long)
+            total_synced += self.sync_market_indices(minutes_long)
             print()
         
-        print(f"=== 동기화 완료: 총 {total_synced}개 레코드 ===\n")
+        print(f"=== 동기화 완료 == =\n")
         return total_synced
     
     def close(self):

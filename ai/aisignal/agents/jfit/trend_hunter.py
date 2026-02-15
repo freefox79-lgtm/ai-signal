@@ -2,6 +2,7 @@ import os
 import json
 import subprocess
 import random
+from api_connectors import APIConnectors
 from agents.security.agent_security import AgentSecurityMiddleware
 from agents.llm.ollama_client import get_ollama_client
 from dotenv import load_dotenv
@@ -11,16 +12,6 @@ load_dotenv(".env.local")
 class JfitTrendHunter:
     """
     쥐핏 (Jfit) - 창의적 악동
-    
-    페르소나:
-    - 밈(MEME)과 위트 중심
-    - 트렌드 해석에 도파민 주입
-    - 짤방 추천 및 유저 인터랙션 유도
-    
-    보안:
-    - 프롬프트 인젝션 방어
-    - 개인정보 보호
-    - 악의적 쿼리 차단
     """
     
     PERSONA = {
@@ -32,6 +23,7 @@ class JfitTrendHunter:
     }
     
     def __init__(self):
+        self.api = APIConnectors() # 🔌 API 연결
         self.security = AgentSecurityMiddleware()  # 🔒 보안 미들웨어
         self.ollama = get_ollama_client()  # 🤖 Ollama 로컬 LLM
 
@@ -55,30 +47,42 @@ class JfitTrendHunter:
     
     def _hunt_trends_internal(self, query):
         """내부 트렌드 수집 로직 (Stealth Crawler 사용)"""
-        print(f"[JFIT 🎭] Hunting trends for: {query}")
+        print(f"[JFIT 🎭] Hunting trends for initial query: {query}")
         
+        # 1. 키워드 확장 (Google Trends/YouTube 기반)
+        target_keywords = [query]
+        try:
+            google_trends = self.api.fetch_google_trends("KR")
+            if google_trends:
+                # 상위 3개 키워드 + 랜덤 1개
+                top_trends = google_trends[:3]
+                if len(google_trends) > 3:
+                    top_trends.append(random.choice(google_trends[3:]))
+                target_keywords = top_trends
+                print(f"[JFIT 🎭] Injected Trending Keywords: {target_keywords}")
+        except Exception as e:
+            print(f"[JFIT 🎭] Keyword injection failed: {e}")
+
         trends = []
         
+        # 각 키워드에 대해 크롤링 수행 (Platform 분산)
+        # 시간 단축을 위해 키워드별로 플랫폼을 다르게 배정
+        platforms_map = {
+            0: ['x', 'finance'],
+            1: ['community', 'instagram'],
+            2: ['finance', 'shopping'],
+            3: ['community', 'x']
+        }
+
         try:
-            # X (Twitter) 수집
-            x_trends = self._call_stealth_crawler('x', query)
-            if x_trends:
-                trends.extend(x_trends)
-            
-            # Instagram 수집
-            insta_trends = self._call_stealth_crawler('instagram', query)
-            if insta_trends:
-                trends.extend(insta_trends)
-            
-            # 커뮤니티 수집 (더쿠, 루리웹, 클리앙, DCInside, FMKorea)
-            community_trends = self._call_stealth_crawler('community', query)
-            if community_trends:
-                trends.extend(community_trends)
-            
-            # 쇼핑 수집 (Hypebeast, Kream)
-            shopping_trends = self._call_stealth_crawler('shopping', query)
-            if shopping_trends:
-                trends.extend(shopping_trends)
+            for idx, keyword in enumerate(target_keywords[:2]): # 상위 2개 키워드만 (속도 고려)
+                platforms = platforms_map.get(idx % 4, ['community'])
+                
+                for plt in platforms:
+                    print(f"[JFIT 🎭] Crawling {plt} for '{keyword}'...")
+                    crawled = self._call_stealth_crawler(plt, keyword)
+                    if crawled:
+                        trends.extend(crawled)
             
             print(f"[JFIT 🎭] Collected {len(trends)} real trends from Stealth Crawler")
             

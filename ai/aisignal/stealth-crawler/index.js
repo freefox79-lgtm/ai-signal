@@ -34,7 +34,7 @@ async function scrapeSNS(platform, query) {
         'https://search.naver.com/'
     ];
 
-    const browser = await puppeteer.launch({
+    const launchOptions = {
         headless: "new",
         args: [
             '--no-sandbox',
@@ -42,7 +42,13 @@ async function scrapeSNS(platform, query) {
             '--disable-dev-shm-usage',
             '--window-size=1280,800'
         ]
-    });
+    };
+
+    if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+        launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+    }
+
+    const browser = await puppeteer.launch(launchOptions);
 
     const page = await browser.newPage();
 
@@ -107,12 +113,38 @@ async function scrapeSNS(platform, query) {
             for (const target of targets) {
                 await page.goto(target.url, { waitUntil: 'networkidle2' });
                 await randomDelay(1500, 3500);
+
+                // Try to get page title as basic content
+                const pageTitle = await page.title();
+
                 results.push({
                     platform: target.name,
-                    content: `[Stealth] '${query}' 관련 쇼핑 트렌드 수집`,
+                    content: `[Stealth] ${pageTitle} ('${query}' 관련)`,
                     source: "Shopping Stealth Engine",
                     timestamp: new Date().toISOString()
                 });
+            }
+        } else if (platform === 'finance') {
+            const targets = [
+                { name: 'Naver Finance', url: `https://finance.naver.com/news/news_search.naver?q=${encodeURIComponent(query)}` },
+                { name: 'Yahoo Finance', url: `https://finance.yahoo.com/lookup?s=${encodeURIComponent(query)}` }
+            ];
+            for (const target of targets) {
+                try {
+                    await page.goto(target.url, { waitUntil: 'networkidle2' });
+                    await randomDelay(2000, 4000);
+
+                    const pageTitle = await page.title();
+
+                    results.push({
+                        platform: target.name,
+                        content: `[Stealth] ${pageTitle} ('${query}' Market Intel)`,
+                        source: "Finance Stealth Engine",
+                        timestamp: new Date().toISOString()
+                    });
+                } catch (e) {
+                    console.error(`Finance scrape error for ${target.name}: ${e}`);
+                }
             }
         }
     } catch (error) {

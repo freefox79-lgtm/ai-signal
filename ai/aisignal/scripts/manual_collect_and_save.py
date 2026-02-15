@@ -65,22 +65,16 @@ def main():
     # 2. SNS Trends (Mock Only for Speed if no API key/Headless setup issue)
     # Stealth crawler might fail in docker if dependencies missing.
     try:
-        print("\n📱 Collecting SNS Trends...")
+        print("\n📱 Collecting SNS Trends (Real Crawler)...")
         jfit = JfitTrendHunter()
-        # Using mock/fallback if crawler fails
-        # Actually crawler might work if deps installed.
-        # But let's try calling it.
-        # trends = jfit.collect_trends() # Assuming method exists
-        # Based on script analysis, it calls _call_stealth_crawler directly
-        # checks scripts/collect_sns_trends.py logic
         
-        # Simulating data for immediate population if real fetch fails
-        mock_trends = [
-            {"platform": "X", "content": "AI Agent trend is rising"},
-            {"platform": "Instagram", "content": "#AIStartup life"},
-            {"platform": "Community", "content": "Python 3.14 release rumors"}
-        ]
-        save_trends(conn, mock_trends)
+        # Real Crawler Call (Dynamic Keywords)
+        real_trends = jfit.hunt_trends("Auto_Manual_Run")
+        
+        if real_trends:
+            save_trends(conn, real_trends)
+        else:
+            print("⚠️ No trends found. Check network or stealth-crawler logs.")
         
     except Exception as e:
         print(f"❌ SNS collection failed: {e}")

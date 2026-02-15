@@ -423,6 +423,40 @@ class APIConnectors:
             print(f"[APIConnectors] Unknown source: {source_name}")
             return {}
 
+    @cache.cached(source="GoogleTrends", expiry=3600)
+    def fetch_google_trends(self, geo="KR"):
+        """
+        Fetches daily trending searches from Google Trends RSS.
+        """
+        if self.mode == "MOCK":
+            return ["알트코인", "AI 에이전트", "삼성전자", "테슬라", "비트코인"]
+
+        url = "https://trends.google.com/trends/trendingsearches/daily/rss"
+        params = {"geo": geo}
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+        
+        try:
+            response = requests.get(url, params=params, headers=headers, timeout=5)
+            if response.status_code == 200:
+                import xml.etree.ElementTree as ET
+                root = ET.fromstring(response.content)
+                trends = []
+                # RSS namespace usually requires handling, but simple find might work or iterate
+                # Structure: channel -> item -> title
+                for item in root.findall(".//item"):
+                    title = item.find("title")
+                    if title is not None:
+                        trends.append(title.text)
+                return trends[:10]  # Return top 10
+            else:
+                print(f"[API] Google Trends error: {response.status_code}")
+                return []
+        except Exception as e:
+            print(f"[API] Google Trends exception: {e}")
+            return []
+
     def fetch_kakao_trends(self, keyword):
         """Fetches Kakao Trend/Search data (Mocked skeleton)."""
         return [
