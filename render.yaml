@@ -17,3 +17,25 @@ services:
         fromConfig: database_url
       - key: REDIS_URL
         fromConfig: redis_url
+      - key: DB_MOCK_MODE
+        value: false
+      - key: API_STATUS
+        value: REAL
+      - key: NAVER_CLIENT_ID
+        fromConfig: naver_client_id
+      - key: NAVER_CLIENT_SECRET
+        fromConfig: naver_client_secret
+      - key: FRED_API_KEY
+        fromConfig: fred_api_key
+      - key: DATA_GO_KR_KEY
+        fromConfig: data_go_kr_key
+      - key: TELEGRAM_BOT_TOKEN
+        fromConfig: telegram_bot_token
+      - key: TELEGRAM_CHAT_ID
+        fromConfig: telegram_chat_id
+      - key: OPENWEATHER_KEY
+        fromConfig: openweather_key
+      - key: TMDB_KEY
+        fromConfig: tmdb_key
+      - key: YOUTUBE_API_KEY
+        fromConfig: youtube_api_key
