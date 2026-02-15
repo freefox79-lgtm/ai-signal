@@ -1,13 +1,14 @@
 services:
   - type: web
     name: ai-signal-odf5
-    env: python
+    env: docker
     rootDir: ai/aisignal
-    buildCommand: pip install -r requirements.txt
-    startCommand: streamlit run app.py
+    dockerContext: ai/aisignal
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.7
+      - key: STREAMLIT_SERVER_PORT
+        value: 10000
       - key: SUPABASE_URL
         fromConfig: supabase_url
       - key: SUPABASE_KEY
