@@ -92,7 +92,11 @@ def show():
     with col_jfit:
         st.markdown("<h3 style='color: var(--acc-neon);'>🔥 쥐핏: 하이프 & SNS</h3>", unsafe_allow_html=True)
         if trends:
-            for keyword, insight in trends:
+            print(f"[DEBUG] Trends Data: {trends}")
+            for row in trends:
+                # Mock Mode may return 3 cols (including agent), Real Mode 2 cols. Safe unpack.
+                keyword = row[0]
+                insight = row[1]
                 render_cyber_card(f"LIVE: {keyword}", insight, "green")
         else:
             render_cyber_card("S-Tier 밈 경보", "데이터 수집 중...", "green")

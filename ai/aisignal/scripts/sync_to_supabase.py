@@ -12,6 +12,7 @@ from datetime import datetime
 import sys
 
 # 중앙 집중식 DB 유틸리티 임포트
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from db_utils import get_db_connection
 
 # 환경 변수 로드
