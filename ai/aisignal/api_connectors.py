@@ -25,6 +25,8 @@ class APIConnectors:
         self.naver_secret = os.getenv("NAVER_CLIENT_SECRET")
         self.alpha_vantage_key = os.getenv("ALPHA_VANTAGE_API_KEY")
         self.fred_key = os.getenv("FRED_API_KEY")
+        self.youtube_key = os.getenv("YOUTUBE_API_KEY")
+        self.public_data_key = os.getenv("DATA_GO_KR_KEY")
         self.mode = mode or os.getenv("API_STATUS", "MOCK").upper()
         self.last_call_time = 0.0
         self.min_interval = 1.0  # Default 1s between calls to avoid rate limits
@@ -241,6 +243,184 @@ class APIConnectors:
             response_time_ms = int((time.time() - start_time) * 1000)
             self._update_source_health("alpha_vantage", False, response_time_ms, str(e), "EXCEPTION")
             print(f"[ERROR] Alpha Vantage Fetch Failed: {e}")
+            return {}
+
+    @cache.cached(source="FRED", expiry=86400)
+    def fetch_fred_series(self, series_id):
+        """
+        Fetches macro economic data from FRED (Federal Reserve Economic Data).
+        Common IDs: GS10 (10Y Bond), CPIAUCSL (CPI), GDP (GDP)
+        """
+        if self.mode == "MOCK":
+            return {"observations": [{"date": "2026-02-15", "value": "4.25"}]}
+
+        if not self.fred_key:
+            print("⚠️ [FRED] API Key is missing. Check .env.local")
+            return {}
+
+        self._throttle()
+        url = "https://api.stlouisfed.org/fred/series/observations"
+        params = {
+            "series_id": series_id,
+            "api_key": self.fred_key,
+            "file_type": "json",
+            "sort_order": "desc",
+            "limit": 5
+        }
+
+        start_time = time.time()
+        try:
+            response = requests.get(url, params=params)
+            response_time_ms = int((time.time() - start_time) * 1000)
+            
+            if response.status_code == 200:
+                self._update_source_health("fred", True, response_time_ms)
+                return response.json()
+            else:
+                self._update_source_health("fred", False, response_time_ms,
+                                          f"HTTP {response.status_code}", str(response.status_code))
+                return {}
+        except Exception as e:
+            response_time_ms = int((time.time() - start_time) * 1000)
+            self._update_source_health("fred", False, response_time_ms, str(e), "EXCEPTION")
+            print(f"[ERROR] FRED Fetch Failed: {e}")
+            return {}
+
+    @cache.cached(source="YouTube", expiry=43200)
+    def fetch_youtube_trends(self, query: str):
+        """
+        Fetches trending videos and basic metrics from YouTube Data API.
+        """
+        if self.mode == "MOCK":
+            return [{"title": f"MOCK: {query} 바이럴 영상", "view_count": "1.2M", "channel": "TrendTV"}]
+
+        if not self.youtube_key:
+            print("⚠️ [YouTube] API Key is missing. Check .env.local")
+            return []
+
+        self._throttle()
+        search_url = "https://www.googleapis.com/youtube/v3/search"
+        params = {
+            "part": "snippet",
+            "q": query,
+            "type": "video",
+            "order": "viewCount",
+            "maxResults": 5,
+            "key": self.youtube_key
+        }
+
+        start_time = time.time()
+        try:
+            response = requests.get(search_url, params=params)
+            response_time_ms = int((time.time() - start_time) * 1000)
+            
+            if response.status_code == 200:
+                self._update_source_health("youtube_data", True, response_time_ms)
+                items = response.json().get("items", [])
+                results = []
+                for item in items:
+                    results.append({
+                        "video_id": item["id"]["videoId"],
+                        "title": item["snippet"]["title"],
+                        "channel": item["snippet"]["channelTitle"],
+                        "published_at": item["snippet"]["publishedAt"],
+                        "thumbnail": item["snippet"]["thumbnails"]["medium"]["url"]
+                    })
+                return results
+            else:
+                self._update_source_health("youtube_data", False, response_time_ms,
+                                          f"HTTP {response.status_code}", str(response.status_code))
+                return []
+        except Exception as e:
+            response_time_ms = int((time.time() - start_time) * 1000)
+            self._update_source_health("youtube_data", False, response_time_ms, str(e), "EXCEPTION")
+            print(f"[ERROR] YouTube Fetch Failed: {e}")
+            return []
+
+    @cache.cached(source="PublicData", expiry=3600)
+    def fetch_public_data(self, endpoint_url: str, params: Dict[str, Any]):
+        """
+        Fetches data from Data.go.kr (Public Data Portal).
+        """
+        if self.mode == "MOCK":
+            return {"status": "OK", "data": "MOCK: 전국 미세먼지 농도 '보통'"}
+
+        if not self.public_data_key:
+            print("⚠️ [PublicData] API Key (Service Key) is missing. Check .env.local")
+            return {}
+
+        self._throttle()
+        
+        # Data.go.kr Service Keys are notoriously sensitive to URL encoding.
+        # Often, they are already encoded in the portal. Passing them to requests' params
+        # can cause double-encoding, leading to 401 errors.
+        import urllib.parse
+        decoded_key = urllib.parse.unquote(self.public_data_key)
+        
+        # Construct URL with raw serviceKey to prevent requests from encoding it again
+        if "?" in endpoint_url:
+            full_url = f"{endpoint_url}&serviceKey={decoded_key}"
+        else:
+            full_url = f"{endpoint_url}?serviceKey={decoded_key}"
+            
+        # Add other params
+        params["_type"] = "json"
+
+        start_time = time.time()
+        try:
+            # We pass params for the rest, but serviceKey is already in the URL
+            response = requests.get(full_url, params=params)
+            response_time_ms = int((time.time() - start_time) * 1000)
+            
+            if response.status_code == 200:
+                self._update_source_health("data_go_kr", True, response_time_ms)
+                return response.json()
+            else:
+                self._update_source_health("data_go_kr", False, response_time_ms,
+                                          f"HTTP {response.status_code}", str(response.status_code))
+                return {}
+        except Exception as e:
+            response_time_ms = int((time.time() - start_time) * 1000)
+            self._update_source_health("data_go_kr", False, response_time_ms, str(e), "EXCEPTION")
+            print(f"[ERROR] Public Data Fetch Failed: {e}")
+            return {}
+
+    def fetch_from_api(self, source_name: str, endpoint: str = None, params: Dict[str, Any] = None):
+        """
+        Generic method to fetch data from any supported API source.
+        Dispatches to specific methods based on source_name.
+        """
+        if params is None:
+            params = {}
+            
+        source_key = source_name.lower().replace(" ", "_")
+        
+        if source_key == "alpha_vantage":
+            symbol = params.get("symbol")
+            if not symbol:
+                return {}
+            return self.fetch_stock_quote(symbol)
+            
+        elif source_key == "fred":
+            series_id = params.get("series_id")
+            if not series_id:
+                return {}
+            return self.fetch_fred_series(series_id)
+            
+        elif source_key == "youtube":
+            query = params.get("query", "trending")
+            return self.fetch_youtube_trends(query)
+            
+        elif source_key == "naver_search":
+            query = params.get("query", "news")
+            return self.fetch_naver_search(query)
+            
+        elif source_key == "coingecko":
+            ids = params.get("ids", "bitcoin")
+            return self.fetch_crypto_prices(ids)
+            
+        else:
+            print(f"[APIConnectors] Unknown source: {source_name}")
             return {}
 
     def fetch_kakao_trends(self, keyword):

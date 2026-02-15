@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 from dotenv import load_dotenv
+from db_utils import get_db_connection
 
 load_dotenv(".env.local")
 
@@ -104,7 +105,7 @@ class ScalingMonitor:
     def get_user_count(self) -> int:
         """사용자 수 조회 (Supabase)"""
         try:
-            conn = get_db_connection(os.getenv("SUPABASE_DATABASE_URL"))
+            conn = get_db_connection(routing='cloud')
             with conn.cursor() as cur:
                 cur.execute("SELECT COUNT(*) FROM users")
                 count = cur.fetchone()[0]

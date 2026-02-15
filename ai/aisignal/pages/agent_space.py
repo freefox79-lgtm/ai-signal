@@ -41,9 +41,9 @@ def render_header_inline():
 def fetch_signals_safe():
     """DB에서 시그널 데이터를 가져옵니다."""
     try:
-        conn = get_db_connection()
-        # 강제 Mock Mode (UI 검증용)
-        mock_mode = True
+        conn = get_db_connection(routing='default')
+        if not conn:
+             return pd.DataFrame()
         
         with conn.cursor() as cur:
             cur.execute("SELECT keyword, insight, agent FROM signals ORDER BY updated_at DESC LIMIT 50")

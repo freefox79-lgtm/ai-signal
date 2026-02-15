@@ -1,0 +1,287 @@
+{
+    "name": "AI Signal Command Center",
+    "nodes": [
+        {
+            "parameters": {
+                "updates": [
+                    "message"
+                ],
+                "additionalFields": {}
+            },
+            "name": "Telegram Trigger",
+            "type": "n8n-nodes-base.telegramTrigger",
+            "typeVersion": 1,
+            "position": [
+                380,
+                240
+            ],
+            "id": "e3b8d1b6-0b3b-4b1a-9c1a-1a2b3c4d5e6f",
+            "credentials": {
+                "telegramApi": {
+                    "id": "YOUR_CREDENTIAL_ID",
+                    "name": "Telegram account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "dataType": "string",
+                "value1": "={{ $json.message.text }}",
+                "rules": {
+                    "rules": [
+                        {
+                            "value2": "동기화시작"
+                        },
+                        {
+                            "value2": "DB수집멈춤"
+                        },
+                        {
+                            "value2": "DB수집재개"
+                        }
+                    ]
+                }
+            },
+            "name": "Command Switch",
+            "type": "n8n-nodes-base.switch",
+            "typeVersion": 1,
+            "position": [
+                580,
+                240
+            ],
+            "id": "f81d4fae-7dec-11d0-a765-00a0c91e6bf6"
+        },
+        {
+            "parameters": {
+                "url": "http://api:8000/sync",
+                "method": "POST",
+                "options": {}
+            },
+            "name": "Trigger Sync",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 3,
+            "position": [
+                800,
+                140
+            ],
+            "id": "a3b8d1b6-0b3b-4b1a-9c1a-1a2b3c4d5e6f"
+        },
+        {
+            "parameters": {
+                "url": "http://api:8000/control/status",
+                "method": "POST",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "active",
+                            "value": "false"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "name": "Stop Collection",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 3,
+            "position": [
+                800,
+                340
+            ],
+            "id": "b4c9e2c7-1c4c-5c2b-ac2b-2b3c4d5e6f7a"
+        },
+        {
+            "parameters": {
+                "url": "http://api:8000/control/status",
+                "method": "POST",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "active",
+                            "value": "true"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "name": "Start Collection",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 3,
+            "position": [
+                800,
+                540
+            ],
+            "id": "c5dae3d8-2d5d-6d3c-bd3c-3c4d5e6f7a8b"
+        },
+        {
+            "parameters": {
+                "url": "https://api.telegram.org/bot8530154370:AAFl-gtpuIZB5HJ_PVy6rAKqNggTxoYe8Aw/sendMessage",
+                "method": "POST",
+                "sendBody": true,
+                "contentType": "json",
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "chat_id",
+                            "value": "7971306014"
+                        },
+                        {
+                            "name": "text",
+                            "value": "✅ **동기화 완료**\n\nDB 동기화가 성공적으로 완료되었습니다.\n처리된 레코드: {{ $json.synced_records }}"
+                        },
+                        {
+                            "name": "parse_mode",
+                            "value": "Markdown"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "name": "Msg Sync Complete",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 3,
+            "position": [
+                1000,
+                140
+            ],
+            "id": "d6ebf4e9-3e6e-7e4d-ce4d-4d5e6f7a8b9c"
+        },
+        {
+            "parameters": {
+                "url": "https://api.telegram.org/bot8530154370:AAFl-gtpuIZB5HJ_PVy6rAKqNggTxoYe8Aw/sendMessage",
+                "method": "POST",
+                "sendBody": true,
+                "contentType": "json",
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "chat_id",
+                            "value": "7971306014"
+                        },
+                        {
+                            "name": "text",
+                            "value": "🛑 **DB 수집 멈춤**\n\n데이터 수집 및 동기화가 중단되었습니다.\n재개하려면 'DB수집재개'를 입력하세요."
+                        },
+                        {
+                            "name": "parse_mode",
+                            "value": "Markdown"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "name": "Msg Stopped",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 3,
+            "position": [
+                1000,
+                340
+            ],
+            "id": "e7fc05fa-4f7f-8f5e-df5e-5e6f7a8b9c0d"
+        },
+        {
+            "parameters": {
+                "url": "https://api.telegram.org/bot8530154370:AAFl-gtpuIZB5HJ_PVy6rAKqNggTxoYe8Aw/sendMessage",
+                "method": "POST",
+                "sendBody": true,
+                "contentType": "json",
+                "bodyParameters": {
+                    "parameters": [
+                        {
+                            "name": "chat_id",
+                            "value": "7971306014"
+                        },
+                        {
+                            "name": "text",
+                            "value": "▶️ **DB 수집 재개**\n\n데이터 수집 프로세스가 다시 활성화되었습니다."
+                        },
+                        {
+                            "name": "parse_mode",
+                            "value": "Markdown"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "name": "Msg Started",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 3,
+            "position": [
+                1000,
+                540
+            ],
+            "id": "f81d4fae-7dec-11d0-a765-00a0c91e6bf6"
+        }
+    ],
+    "connections": {
+        "Telegram Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Command Switch",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Command Switch": {
+            "main": [
+                [
+                    {
+                        "node": "Trigger Sync",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Stop Collection",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Start Collection",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Trigger Sync": {
+            "main": [
+                [
+                    {
+                        "node": "Msg Sync Complete",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Stop Collection": {
+            "main": [
+                [
+                    {
+                        "node": "Msg Stopped",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Start Collection": {
+            "main": [
+                [
+                    {
+                        "node": "Msg Started",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    }
+}

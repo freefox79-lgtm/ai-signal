@@ -78,16 +78,5 @@ CREATE TABLE IF NOT EXISTS action_buttons (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 7. 쥄(Jwem) 포트폴리오 스택 [cite: 2026-02-14]
-CREATE TABLE IF NOT EXISTS jwem_portfolio (
-    id BIGSERIAL PRIMARY KEY,
-    stock_code TEXT UNIQUE NOT NULL,
-    stock_name TEXT,
-    account_type TEXT, -- 'general', 'isa', 'pension', 'irp'
-    quantity INTEGER DEFAULT 0,
-    avg_price DECIMAL DEFAULT 0,
-    current_price DECIMAL DEFAULT 0,
-    profit_loss DECIMAL DEFAULT 0,
-    profit_rate DECIMAL DEFAULT 0,
-    last_updated TIMESTAMPTZ DEFAULT NOW()
-);
+-- 7. 쥄(Jwem) 포트폴리오 스택 [DELETED due to privacy]
+-- [jwem_portfolio table removed]

@@ -21,6 +21,9 @@ class TelegramNotifier:
             "N8N_SCALING_WEBHOOK_URL",
             "http://localhost:5678/webhook/scaling-alert"
         )
+        # Direct Telegram API for Personal Notifications
+        self.bot_token = os.getenv("TELEGRAM_BOT_TOKEN")
+        self.chat_id = os.getenv("TELEGRAM_CHAT_ID")
     
     def format_message(
         self,
@@ -100,6 +103,50 @@ class TelegramNotifier:
             return True
         except Exception as e:
             print(f"❌ 텔레그램 알림 전송 실패: {e}")
+            return False
+
+    def send_agi_summary(self, title: str, summary_data: dict) -> bool:
+        """AGI 집합적 감성 요약을 텔레그램으로 직접 전송 (PRIVATE)"""
+        if not self.bot_token or not self.chat_id:
+            # Fallback for testing if env not updated yet
+            self.bot_token = "8530154370:AAFl-gtpuIZB5HJ_PVy6rAKqNggTxoYe8Aw"
+            self.chat_id = "7971306014"
+            
+        # 메시지 구성
+        message = f"🌟 **AGI Collective Intelligence Summary**\n\n"
+        message += f"📌 **이슈:** {title}\n"
+        message += f"━━━━━━━━━━━━━━━━━━━━\n\n"
+        
+        # 내부 에이전트 요약
+        message += f"🤖 **내부 요원 (Jwem/Jfit/Stealth)**\n"
+        message += f"└ 결과: {summary_data['internal_result']}\n"
+        message += f"└ 확신도: {summary_data['internal_confidence']}%\n\n"
+        
+        # 외부 AGI 요약 (오픈크로, 몰트봇 등)
+        message += f"📡 **외부 AGI 합의 (Open-Cro/Moltbot)**\n"
+        message += f"└ 결과: {summary_data['external_result']}\n"
+        message += f"└ 합의 수준: {summary_data['external_agreement']}\n\n"
+        
+        # 핵심 인사이트 (합성)
+        message += f"🧠 **집합적 인사이트 (Synthesis)**\n"
+        message += f"_{summary_data['synthesis_insight']}_\n\n"
+        
+        message += f"🔗 [Oracle 상세 분석 보기](https://aisignal.com/oracle)"
+
+        url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
+        data = {
+            "chat_id": self.chat_id,
+            "text": message,
+            "parse_mode": "Markdown"
+        }
+
+        try:
+            response = requests.post(url, json=data, timeout=10)
+            response.raise_for_status()
+            print(f"✅ AGI 요약 개인 텔레그램 전송 성공")
+            return True
+        except Exception as e:
+            print(f"❌ AGI 요약 전송 실패: {e}")
             return False
 
 

@@ -6,3 +6,4 @@ venv/
 .env.local
 sessions/
 .DS_Store
+.env.production

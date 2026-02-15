@@ -5,18 +5,18 @@ from dotenv import load_dotenv
 import pandas as pd
 from db_utils import get_db_connection
 
-load_dotenv()
-DB_URL = os.getenv("DATABASE_URL")
 
 def get_mcp_status_from_db():
     try:
-        if not DB_URL:
+        # 인프라 상태(MCP)는 로컬 Mac Mini DB(local)에서 관리
+        conn = get_db_connection(routing='local')
+        if not conn:
             return []
-        conn = get_db_connection(DB_URL)
-        cur = conn.cursor()
-        cur.execute("SELECT server_name, status, last_health_check FROM mcp_status;")
-        data = cur.fetchall()
-        cur.close()
+            
+        with conn.cursor() as cur:
+            cur.execute("SELECT server_name, status, last_health_check FROM mcp_status;")
+            data = cur.fetchall()
+            return data
         conn.close()
         return data
     except:

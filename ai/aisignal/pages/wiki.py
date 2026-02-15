@@ -16,9 +16,12 @@ import traceback
 def get_origin_data():
     """DB에서 이슈 확산 데이터를 가져옵니다."""
     try:
-        conn = get_db_connection()
+        # GraphRAG 데이터는 로컬 Mac Mini DB(local)에서 관리
+        conn = get_db_connection(routing='local')
+        if not conn:
+            raise ValueError("Failed to establish local database connection")
+            
         with conn.cursor() as cur:
-            # MockCursor는 query에 'origin_tracking'이 포함되면 데이터를 반환함
             cur.execute("SELECT * FROM origin_tracking") 
             data = cur.fetchall()
             return data
@@ -168,11 +171,14 @@ def show():
             # 5. Timeline View (Diffusion Log)
             st.markdown("### ⏱️ 확산 타임라인 (Diffusion Timeline)")
             sorted_edges = sorted(edges, key=lambda x: x['timestamp'])
-            
             for edge in sorted_edges:
+                # Ensure timestamp is a string for splitting or format it
+                ts_str = edge['timestamp'].strftime('%Y-%m-%dT%H:%M:%S') if isinstance(edge['timestamp'], datetime) else str(edge['timestamp'])
+                time_only = ts_str.split('T')[1] if 'T' in ts_str else ts_str
+                
                 st.markdown(f"""
                 <div style="display: flex; align-items: center; margin-bottom: 10px; padding: 10px; background: rgba(255, 255, 255, 0.05); border-radius: 8px;">
-                    <div style="width: 150px; color: #aaa; font-size: 0.9rem;">{edge['timestamp'].split('T')[1]}</div>
+                    <div style="width: 150px; color: #aaa; font-size: 0.9rem;">{time_only}</div>
                     <div style="flex-grow: 1;">
                         <span style="color: var(--acc-blue); font-weight: bold;">{edge['source']}</span>
                         <span style="margin: 0 10px; color: #555;">➡️</span>

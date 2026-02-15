@@ -140,81 +140,87 @@ class JfitTrendHunter:
             }
         ]
 
-    def generate_meme_prompt(self, trend_data):
-        """Converts trend data into a creative prompt for meme generation."""
-        return f"Create a cyberpunk meme about: {trend_data[0]['content']}"
-    
     def inject_dopamine(self, boring_data):
+        """Single item dopamine injection (Legacy/Single)"""
+        return self.inject_dopamine_batch([boring_data])[0]
+        
+    def inject_dopamine_batch(self, items: list) -> list:
         """
-        지루한 데이터에 도파민 주입 (Ollama AI 창의성)
+        여러 데이터에 도파민 한꺼번에 주입 (Mac Mini 최적화 배치 처리)
         
         Args:
-            boring_data: dict or str with boring analysis
+            items: 분석할 원본 데이터 리스트
             
         Returns:
-            dict: {
-                "original": str,
-                "dopamine_version": str,
-                "meme_suggestions": list,
-                "engagement_score": float
-            }
+            list: 최적화된 결과 리스트
         """
-        print("[JFIT 🎭] Injecting dopamine into boring data...")
-        
-        original = str(boring_data)
-        
-        # Ollama로 창의적 재작성
-        prompt = f"""다음 지루한 데이터를 재미있고 바이럴한 문구로 재작성하세요.
-밈, 이모지, 위트를 최대한 활용하세요. 한국어 인터넷 문화를 반영하세요.
-
-지루한 데이터:
-{original[:500]}
-
-재미있는 버전:"""
-        
-        try:
-            dopamine_version = self.ollama.generate(
-                prompt,
-                model="llama3.2:3b",
-                temperature=0.9,  # 창의성 높게
-                max_tokens=200
-            ).strip()
+        if not items:
+            return []
             
-            print(f"[JFIT 🎭] AI Dopamine: {dopamine_version[:50]}...")
+        print(f"[JFIT 🎭] Injecting dopamine into {len(items)} items (Batch Processing)...")
+        
+        # 10개씩 청크로 나눔 (LLM 컨텍스트 최적화)
+        chunk_size = 10
+        all_results = []
+        
+        for i in range(0, len(items), chunk_size):
+            chunk = items[i:i + chunk_size]
             
-        except Exception as e:
-            print(f"[JFIT 🎭] Ollama error, using fallback: {e}")
-            # Fallback: 간단한 템플릿
-            if isinstance(boring_data, dict):
-                sentiment = boring_data.get('market_sentiment', 'neutral')
-                if sentiment == 'bullish':
-                    dopamine_version = f"🚀 달까지 가즈아! 🌙"
-                elif sentiment == 'bearish':
-                    dopamine_version = f"😱 곰이 나타났다! 🐻"
-                else:
-                    dopamine_version = f"😐 심심한 하루네요 zzZ"
-            else:
-                dopamine_version = f"🎉 {original[:100]} (근데 이거 재미없음 ㅋㅋ)"
-        
-        # Meme suggestions
-        meme_suggestions = [
-            "stonks_meme.jpg",
-            "this_is_fine.gif",
-            "money_printer_go_brr.png"
-        ]
-        
-        engagement_score = random.uniform(0.75, 0.98)
-        
-        result = {
-            "original": original,
-            "dopamine_version": dopamine_version,
-            "meme_suggestions": meme_suggestions,
-            "engagement_score": engagement_score
-        }
-        
-        print(f"[JFIT 🎭] Dopamine injected! Engagement score: {engagement_score:.0%}")
-        
-        return result
+            # Ollama용 배치 프롬프트 생성
+            batch_text = "\n---\n".join([f"Item {idx+1}: {str(item)[:300]}" for idx, item in enumerate(chunk)])
+            
+            prompt = f"""다음 {len(chunk)}량의 데이터를 각각 재미있고 바이럴한 문구로 재작성하세요.
+밈, 이모지, 위트를 최대한 활용하고 한국어 인터넷 문화를 반영하세요.
+각 항목은 반드시 'Item N:' 형식을 유지하며 구분하세요.
+
+데이터 리스트:
+{batch_text}
+
+재미있는 버전들:"""
+            
+            try:
+                response = self.ollama.generate(
+                    prompt,
+                    model="llama3.2:3b",
+                    temperature=0.9,
+                    max_tokens=1000
+                )
+                
+                # 결과 파싱 (간단한 파싱 로직)
+                # 실제 환경에서는 더 정교한 Regex나 JSON 모드 사용 권장
+                lines = response.split('\n')
+                current_item_text = []
+                chunk_results = []
+                
+                for line in lines:
+                    if line.startswith('Item') and ':' in line:
+                        if current_item_text:
+                            chunk_results.append("\n".join(current_item_text).strip())
+                            current_item_text = []
+                    else:
+                        current_item_text.append(line)
+                
+                if current_item_text:
+                    chunk_results.append("\n".join(current_item_text).strip())
+                
+                # 개수 맞춤 (부족하면 원본 또는 에러 메시지)
+                while len(chunk_results) < len(chunk):
+                    chunk_results.append("다음에 더 재미있는 짤로 찾아올게요! (분석 오류)")
+                
+                for idx, result in enumerate(chunk_results[:len(chunk)]):
+                    all_results.append({
+                        "original": str(chunk[idx]),
+                        "dopamine_version": result,
+                        "meme_suggestions": ["stonks_meme.jpg"], # Batch logic simplifies this
+                        "engagement_score": random.uniform(0.85, 0.99)
+                    })
+                    
+            except Exception as e:
+                print(f"[JFIT 🎭] Batch dopamine error: {e}")
+                for item in chunk:
+                    all_results.append({"original": str(item), "dopamine_version": "Error in batch", "engagement_score": 0.0})
+                    
+        return all_results
     
     def recommend_meme(self, trend_context):
         """

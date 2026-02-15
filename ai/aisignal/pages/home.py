@@ -87,15 +87,12 @@ def show():
     with col_timestamp:
         st.markdown(f"<p style='text-align: right; color: #8e8e93; font-size: 0.85rem; margin-top: 10px;'>업데이트: {datetime.now().strftime('%H:%M:%S')}</p>", unsafe_allow_html=True)
     
-    import psycopg2
-    import os
     from db_utils import get_db_connection
     try:
-        db_url = os.getenv("DATABASE_URL")
-        if not db_url:
-            raise ValueError("DATABASE_URL not set in environment")
-        
-        conn = get_db_connection(db_url)
+        conn = get_db_connection(routing='default')
+        if not conn:
+            raise ValueError("Failed to establish database connection")
+            
         with conn.cursor() as cur:
             cur.execute("SELECT keyword, insight, agent FROM signals ORDER BY updated_at DESC LIMIT 10")
             live_trends = cur.fetchall()

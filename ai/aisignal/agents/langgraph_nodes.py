@@ -122,29 +122,32 @@ class AgentNodes:
         """
         print("\n[CROSS-VALIDATION] Starting agent cross-validation...")
         
-        # Step 1: Jwem fact-checks Jfit's trends
+        # Step 1: Jwem fact-checks Jfit's trends (Batch Processing)
         fact_check_results = []
         jfit_trends = state.get('jfit_trends', [])
         
         if jfit_trends:
-            print(f"[CROSS-VALIDATION] Jwem fact-checking {len(jfit_trends)} trends...")
-            for trend in jfit_trends:
-                fact_check = self.jwem.fact_check_trend(trend)
+            print(f"[CROSS-VALIDATION] Jwem fact-checking {len(jfit_trends)} trends in batch...")
+            # Use the new batch method
+            batch_fact_checks = self.jwem.fact_check_trends_batch(jfit_trends)
+            
+            for idx, fact_check in enumerate(batch_fact_checks):
                 fact_check_results.append({
-                    'trend': trend,
+                    'trend': jfit_trends[idx],
                     'fact_check': fact_check
                 })
         
         state['fact_check_results'] = fact_check_results
         
-        # Step 2: Jfit injects dopamine into Jwem's analysis
+        # Step 2: Jfit injects dopamine into Jwem's analysis (Single but using the batch wrapper)
         jwem_analysis_enhanced = {}
         jwem_analysis = state.get('jwem_analysis')
         
         if jwem_analysis:
-            print("[CROSS-VALIDATION] Jfit injecting dopamine into Jwem's analysis...")
-            dopamine_result = self.jfit.inject_dopamine(jwem_analysis)
-            jwem_analysis_enhanced = dopamine_result
+            print("[CROSS-VALIDATION] Jfit injecting dopamine into Jwem's analysis (Batch Optimized)...")
+            # Items can be extended here if multiple analysis reports were needed
+            dopamine_results = self.jfit.inject_dopamine_batch([jwem_analysis])
+            jwem_analysis_enhanced = dopamine_results[0] if dopamine_results else {}
         
         state['jwem_analysis_enhanced'] = jwem_analysis_enhanced
         

@@ -12,11 +12,24 @@ from db_utils import get_db_connection
 def fetch_issues():
     """DB에서 이슈 데이터를 가져옵니다."""
     try:
-        conn = get_db_connection()
+        # 이슈 및 투표 데이터는 글로벌(default) DB에서 관리
+        conn = get_db_connection(routing='default')
         with conn.cursor() as cur:
-            cur.execute("SELECT id, category, title, pros_count, cons_count, agent_pros_count, agent_cons_count, is_closed FROM issues")
+            cur.execute("""
+                SELECT id, category, title, 
+                       pros_count, cons_count, 
+                       agent_pros_count, agent_cons_count, 
+                       external_agent_pros_count, external_agent_cons_count,
+                       is_closed FROM issues
+            """)
             data = cur.fetchall()
-            columns = ['id', 'category', 'title', 'pros_count', 'cons_count', 'agent_pros_count', 'agent_cons_count', 'is_closed']
+            columns = [
+                'id', 'category', 'title', 
+                'pros_count', 'cons_count', 
+                'agent_pros_count', 'agent_cons_count', 
+                'external_agent_pros_count', 'external_agent_cons_count',
+                'is_closed'
+            ]
             if data:
                 return pd.DataFrame(data, columns=columns)
             else:
@@ -136,56 +149,68 @@ def show():
             a_pros_pct = int((row['agent_pros_count'] / a_total) * 100) if a_total > 0 else 50
             a_cons_pct = 100 - a_pros_pct
             
+            # External Agent Votes (Moltbot, Open-Cro, etc.)
+            ext_total = row['external_agent_pros_count'] + row['external_agent_cons_count']
+            ext_pros_pct = int((row['external_agent_pros_count'] / ext_total) * 100) if ext_total > 0 else 50
+            ext_cons_pct = 100 - ext_pros_pct
+            
             # Dynamic Colors based on majority
             u_winner_color = "var(--neon-green)" if u_pros_pct >= u_cons_pct else "var(--neon-magenta)"
             a_winner_color = "var(--neon-green)" if a_pros_pct >= a_cons_pct else "var(--neon-magenta)"
+            ext_winner_color = "var(--neon-green)" if ext_pros_pct >= ext_cons_pct else "var(--neon-magenta)"
             
             html_active = f"""<div class="glass-card" style="margin-bottom: 25px; border-left: 5px solid var(--acc-purple); position: relative; overflow: hidden;">
 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
 <span class="wiki-tag" style="background: var(--acc-purple); color: black; font-weight: bold;">{row['category']}</span>
 <span style="color: #888; font-size: 0.8rem;">분석 시그널 ID: #ORC-{row['id']:03d}</span>
 </div>
-<h3 style="margin: 0 0 20px 0; font-size: 1.4rem; color: #fff;">{row['title']} <span style="font-size: 0.8rem; color: #555;">🔗</span></h3>
+<h3 style="margin: 0 0 20px 0; font-size: 1.4rem; color: #fff;">{row['title']}</h3>
 
 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
 <!-- User Sentiment Bar -->
 <div style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 10px;">
 <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-<span style="font-size: 0.75rem; color: #aaa; font-family: 'Orbitron';">👤 HUMAN SENTIMENT</span>
-<span style="font-size: 0.75rem; color: #888;">{u_total:,}명 투표</span>
+<span style="font-size: 0.7rem; color: #aaa; font-family: 'Orbitron';">👤 HUMAN</span>
+<span style="font-size: 0.7rem; color: #888;">{u_total:,}명</span>
 </div>
 <div style="display: flex; align-items: center; gap: 10px;">
-<span style="color: {u_winner_color if u_pros_pct >= 50 else '#444'}; font-weight: bold; font-size: 0.9rem;">{u_pros_pct}%</span>
-<div style="flex-grow: 1; height: 12px; background: #222; border-radius: 6px; overflow: hidden; display: flex; box-shadow: inset 0 0 5px #000;">
-<div style="width: {u_pros_pct}%; background: linear-gradient(90deg, #00ff9f, #00bfff); opacity: {1 if u_pros_pct >= 50 else 0.3};"></div>
-<div style="width: {u_cons_pct}%; background: linear-gradient(90deg, #ff00ff, #ff0055); opacity: {1 if u_cons_pct > 50 else 0.3};"></div>
+<div style="flex-grow: 1; height: 10px; background: #222; border-radius: 5px; overflow: hidden; display: flex;">
+<div style="width: {u_pros_pct}%; background: linear-gradient(90deg, #00ff9f, #00bfff);"></div>
+<div style="width: {u_cons_pct}%; background: linear-gradient(90deg, #ff00ff, #ff0055);"></div>
 </div>
-<span style="color: {u_winner_color if u_cons_pct > 50 else '#444'}; font-weight: bold; font-size: 0.9rem;">{u_cons_pct}%</span>
-</div>
-<div style="display: flex; justify-content: space-between; margin-top: 5px; font-size: 0.65rem; color: #555;">
-<span>찬성 (PROS)</span>
-<span>반대 (CONS)</span>
+<span style="color: {u_winner_color}; font-weight: bold; font-size: 0.8rem;">{max(u_pros_pct, u_cons_pct)}%</span>
 </div>
 </div>
 
-<!-- Agent Sentiment Bar -->
+<!-- Internal Agent Sentiment -->
 <div style="background: rgba(0, 255, 249, 0.05); padding: 12px; border-radius: 10px; border: 1px solid rgba(0, 255, 249, 0.1);">
 <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-<span style="font-size: 0.75rem; color: var(--neon-cyan); font-family: 'Orbitron';">🤖 AGENT PREDICTION</span>
-<span style="font-size: 0.75rem; color: #888;">AI 퀀텀 분석 결과</span>
+<span style="font-size: 0.7rem; color: var(--neon-cyan); font-family: 'Orbitron';">🤖 INTERNAL AGENTS</span>
+<span style="font-size: 0.7rem; color: #888;">지능지수 합산</span>
 </div>
 <div style="display: flex; align-items: center; gap: 10px;">
-<span style="color: {a_winner_color if a_pros_pct >= 50 else '#444'}; font-weight: bold; font-size: 0.9rem;">{a_pros_pct}%</span>
-<div style="flex-grow: 1; height: 12px; background: #222; border-radius: 6px; overflow: hidden; display: flex; box-shadow: inset 0 0 5px #000; border: 1px solid rgba(0, 255, 249, 0.2);">
-<div style="width: {a_pros_pct}%; background: #00fff9; box-shadow: 0 0 10px #00fff9; opacity: {1 if a_pros_pct >= 50 else 0.3};"></div>
-<div style="width: {a_cons_pct}%; background: #ff00ff; box-shadow: 0 0 10px #ff00ff; opacity: {1 if a_cons_pct > 50 else 0.3};"></div>
+<div style="flex-grow: 1; height: 10px; background: #222; border-radius: 5px; overflow: hidden; display: flex; border: 1px solid rgba(0, 255, 249, 0.2);">
+<div style="width: {a_pros_pct}%; background: #00fff9;"></div>
+<div style="width: {a_cons_pct}%; background: #ff00ff;"></div>
 </div>
-<span style="color: {a_winner_color if a_cons_pct > 50 else '#444'}; font-weight: bold; font-size: 0.9rem;">{a_cons_pct}%</span>
+<span style="color: {a_winner_color}; font-weight: bold; font-size: 0.8rem;">{max(a_pros_pct, a_cons_pct)}%</span>
 </div>
-<div style="display: flex; justify-content: space-between; margin-top: 5px; font-size: 0.65rem; color: #555;">
-<span>AI 찬성</span>
-<span>AI 반대</span>
 </div>
+</div>
+
+<!-- EXTERNAL AGI SENTIMENT (Moltbot, Open-Cro...) -->
+<div style="background: rgba(255, 215, 0, 0.05); padding: 12px; border-radius: 10px; border: 1px solid rgba(255, 215, 0, 0.2); margin-bottom: 20px;">
+<div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+<span style="font-size: 0.7rem; color: #FFD700; font-family: 'Orbitron';">📡 EXTERNAL AGI DEMOCRACY</span>
+<span style="font-size: 0.7rem; color: #888;">Moltbot, Open-Cro 등</span>
+</div>
+<div style="display: flex; align-items: center; gap: 10px;">
+<span style="color: {ext_winner_color if ext_pros_pct >= 50 else '#444'}; font-weight: bold; font-size: 0.9rem;">{ext_pros_pct}%</span>
+<div style="flex-grow: 1; height: 12px; background: #222; border-radius: 6px; overflow: hidden; display: flex; border: 1px solid rgba(255, 215, 0, 0.3);">
+<div style="width: {ext_pros_pct}%; background: #FFD700; box-shadow: 0 0 10px #FFD700; opacity: {1 if ext_pros_pct >= 50 else 0.3};"></div>
+<div style="width: {ext_cons_pct}%; background: #ff4500; box-shadow: 0 0 10px #ff4500; opacity: {1 if ext_cons_pct > 50 else 0.3};"></div>
+</div>
+<span style="color: {ext_winner_color if ext_cons_pct > 50 else '#444'}; font-weight: bold; font-size: 0.9rem;">{ext_cons_pct}%</span>
 </div>
 </div>
 

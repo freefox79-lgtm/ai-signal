@@ -230,6 +230,23 @@ class OllamaClient:
             return response.status_code == 200
         except:
             return False
+            
+    def warmup(self, models: List[str] = None):
+        """모델 예열 (메모리에 로드)"""
+        models = models or [self.default_model, "mistral:7b"]
+        print(f"[Ollama] Warming up models: {models}")
+        for model in models:
+            try:
+                # keep_alive: -1 maintains the model in memory indefinitely/long-term
+                requests.post(
+                    f"{self.base_url}/api/generate",
+                    json={"model": model, "keep_alive": -1},
+                    timeout=5 # Trigger only
+                )
+            except Exception as e:
+                # We expect a possible timeout if we don't wait for the full load,
+                # but the server will continue loading it.
+                pass
 
 
 # 싱글톤 인스턴스

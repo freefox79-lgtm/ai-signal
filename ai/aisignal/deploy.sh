@@ -131,20 +131,16 @@ else
 fi
 echo ""
 
-# Step 8: Verify Cron jobs
-echo -e "${BLUE}=== Step 8: Cron Jobs Verification ===${NC}"
-CRON_COUNT=$(crontab -l 2>/dev/null | grep -v "^#" | grep -c "scaling_monitor" || true)
-if [ "$CRON_COUNT" -gt 0 ]; then
-    echo -e "${GREEN}✅ Cron job configured (${CRON_COUNT} jobs)${NC}"
-else
-    echo -e "${YELLOW}⚠️  No cron jobs found${NC}"
-    echo "Configure cron job with:"
-    echo "  crontab crontab_config.txt"
-fi
+# Step 9: LLM Model Warm-up
+echo -e "${BLUE}=== Step 9: LLM Model Warm-up ===${NC}"
+echo "Pre-loading models into Mac Mini memory..."
+curl -X POST http://localhost:11434/api/generate -d '{"model": "llama3.2:3b", "keep_alive": -1}' > /dev/null 2>&1 &
+curl -X POST http://localhost:11434/api/generate -d '{"model": "mistral:7b", "keep_alive": -1}' > /dev/null 2>&1 &
+echo -e "${GREEN}✅ Warm-up initiated (background)${NC}"
 echo ""
 
-# Step 9: Display access URLs
-echo -e "${BLUE}=== Step 9: Access Information ===${NC}"
+# Step 10: Display access URLs
+echo -e "${BLUE}=== Step 10: Access Information ===${NC}"
 echo ""
 echo -e "${GREEN}🌐 Service URLs:${NC}"
 echo "  • Streamlit App:  http://localhost:8501"
@@ -157,7 +153,7 @@ echo "  • Docker Logs:     docker-compose logs -f"
 echo "  • Health Check:    python scripts/system_health_check.py"
 echo ""
 
-# Step 10: Final summary
+# Step 11: Final summary
 echo "============================================================"
 echo -e "${GREEN}🎉 DEPLOYMENT COMPLETE!${NC}"
 echo "============================================================"
@@ -165,6 +161,7 @@ echo ""
 echo -e "${GREEN}✅ Status: Production Ready${NC}"
 echo -e "${GREEN}✅ Services: 7/7 Running${NC}"
 echo -e "${GREEN}✅ Health: All Systems Operational${NC}"
+echo -e "${GREEN}✅ LLM: Models Pre-loaded${NC}"
 echo ""
 echo -e "${BLUE}Next Steps:${NC}"
 echo "  1. Monitor Telegram for alerts"

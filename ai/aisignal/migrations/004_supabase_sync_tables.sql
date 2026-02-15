@@ -37,7 +37,7 @@ CREATE INDEX IF NOT EXISTS idx_data_sources_name ON data_sources(source_name);
 -- ================================================
 -- 3. 기존 테이블 확인
 -- ================================================
--- knowledge_graph, knowledge_relationships, jwem_portfolio는
+-- knowledge_graph, knowledge_relationships는
 -- 이미 생성되어 있어야 함
 
 -- ================================================
