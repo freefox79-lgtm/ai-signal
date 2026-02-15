@@ -1,28 +1,37 @@
 import streamlit as st
+import pandas as pd
+import sys
+import os
+from datetime import datetime
+
+# 모듈 경로 문제 해결을 위해 루트 경로 추가
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from agents.graphrag.knowledge_graph import KnowledgeGraph
 from agents.graphrag.hyperlink_generator import HyperlinkGenerator
 from components.graph_visualizer import GraphVisualizer
+from db_utils import get_db_connection
 import traceback
+
+def get_origin_data():
+    """DB에서 이슈 확산 데이터를 가져옵니다."""
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cur:
+            # MockCursor는 query에 'origin_tracking'이 포함되면 데이터를 반환함
+            cur.execute("SELECT * FROM origin_tracking") 
+            data = cur.fetchall()
+            return data
+    except Exception as e:
+        st.error(f"데이터 로드 실패: {e}")
+        return []
 
 def show():
     # GraphRAG 컴포넌트 초기화
     try:
-        kg = KnowledgeGraph()
-        hg = HyperlinkGenerator()
         gv = GraphVisualizer()
     except Exception as e:
         st.error(f"GraphRAG 초기화 실패: {e}")
-        
-        # 상세 가이드 제공
-        with st.expander("🔍 데이터베이스 연결 트러블슈팅"):
-            st.info("""
-            **연결 실패 시 확인 사항:**
-            1. **로컬 개발 시**: 도커의 `aisignal-postgres` 컨테이너가 실행 중인지 확인하세요.
-            2. **Supabase 연결 시**: `.env.local`의 `DATABASE_URL`에 `sslmode=require`가 포함되어 있는지 확인하세요.
-            3. **하이브리드 모드(Option 2)**: 외부에서 접속 중이라면 맥미니의 **Cloudflare 터널**이 실행 중인지 확인하세요.
-               - 실행 명령어: `cloudflared tunnel run aisignal-v4-tunnel`
-            4. **네트워크**: 현재 네트워크 환경에서 Supabase 포트(5432 또는 6543) 접근이 차단되어 있지 않은지 확인하세요.
-            """)
         return
     
     # 🎯 이슈근원지 네온 헤더
@@ -33,111 +42,148 @@ def show():
         </div>
     """, unsafe_allow_html=True)
     
-    # 📊 그래프 통계
-    try:
-        stats = kg.get_graph_stats()
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("노드", f"{stats.get('node_count', 0):,}")
-        with col2:
-            st.metric("엣지", f"{stats.get('edge_count', 0):,}")
-        with col3:
-            st.metric("엔티티 타입", f"{stats.get('type_count', 0):,}")
-    except Exception as e:
-        st.warning(f"통계 로드 실패: {e}")
-    
-    st.divider()
-    
-    # 🔍 노드 검색
-    st.markdown("### 🔍 지식 노드 검색")
-    query = st.text_input("", placeholder="검색할 노드를 입력하세요 (예: '반도체', 'SK 하이닉스')...", label_visibility="collapsed")
+    # 🔍 노드 검색 (Origin Tracking Focus)
+    st.markdown("### 🔍 이슈 키워드 추적")
+    # Default query to show the mock data scenario
+    c1, c2 = st.columns([4, 1], gap="small", vertical_alignment="bottom")
+    with c1:
+        query_input = st.text_input("", value="딥페이크 유포 경로", placeholder="추적할 이슈 키워드를 입력하세요...", label_visibility="collapsed")
+    with c2:
+        st.markdown("""
+        <style>
+        div.stButton > button:first-child {
+            width: 100%;
+            height: 46px; /* Match standard input height */
+            background: linear-gradient(90deg, #ff0055 0%, #ff5500 100%);
+            color: white;
+            border: none;
+            font-weight: bold;
+            font-size: 1.1rem;
+            box-shadow: 0 0 15px rgba(255, 0, 85, 0.5);
+            transition: all 0.3s ease;
+        }
+        div.stButton > button:first-child:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 25px rgba(255, 0, 85, 0.8);
+            border: 1px solid white;
+        }
+        </style>
+        """, unsafe_allow_html=True)
+        search_click = st.button("🚀 추적 실행", type="primary", use_container_width=True)
+
+    query = query_input if query_input else ""
     
     if query:
-        with st.spinner("검색 중..."):
-            try:
-                # 관련 엔티티 검색
-                results = kg.find_related_entities(query, top_k=10, threshold=0.5)
+        with st.spinner(f"'{query}'의 근원지를 추적 중입니다..."):
+            
+            # 1. 데이터 가져오기
+            raw_data = get_origin_data()
+            
+            if not raw_data:
+                st.warning("추적할 데이터가 없습니다.")
+                return
+
+            # 2. 데이터 가공 (Nodes & Edges)
+            nodes = {}
+            edges = []
+            
+            # 타임스탬프 파싱 및 노드/엣지 구성
+            for row in raw_data:
+                # row: (id, source, target, type, confidence, timestamp, metadata)
+                source = row[1]
+                target = row[2]
+                rel_type = row[3]
+                timestamp = row[5]
+                metadata = row[6]
                 
-                if results:
-                    st.success(f"**{len(results)}개**의 관련 노드를 찾았습니다.")
-                    
-                    # 검색 결과 표시
-                    for i, entity in enumerate(results, 1):
-                        with st.expander(f"{i}. **{entity['entity']}** ({entity['entity_type']}) - 유사도: {entity['similarity']:.2%}"):
-                            st.write(f"**타입**: {entity['entity_type']}")
-                            st.write(f"**유사도**: {entity['similarity']:.2%}")
-                            if entity.get('metadata'):
-                                st.json(entity['metadata'])
-                    
-                    # 그래프 시각화
-                    st.markdown("### 🕸️ 관계 그래프")
-                    try:
-                        # 관계 가져오기
-                        relationships = kg.get_entity_relationships(query, max_depth=1)
-                        
-                        # 그래프 생성
-                        html_content = gv.create_graph(results[:5], relationships)
-                        gv.render(html_content, height=500)
-                    except Exception as e:
-                        st.warning(f"그래프 시각화 실패: {e}")
-                        st.info("관계 데이터가 부족합니다.")
+                # Source Node
+                if source not in nodes:
+                    nodes[source] = {
+                        "id": source, 
+                        "entity": source, 
+                        "entity_type": "person" if "User" in source else ("platform" if "Web" in source else "social"), 
+                        "metadata": metadata, # contains credibility
+                        "first_seen": timestamp
+                    }
                 else:
-                    st.info("검색 결과가 없습니다. 다른 키워드를 시도해보세요.")
-            except Exception as e:
-                st.error(f"검색 실패: {e}")
-                st.code(traceback.format_exc())
-    else:
-        # 플레이스홀더 그래프
-        st.markdown("""
-            <div class="glass-card" style="height: 500px; position: relative; overflow: hidden; border: 1px dashed var(--acc-blue); background: radial-gradient(circle, rgba(0,212,255,0.05) 0%, rgba(0,0,0,1) 100%);">
-                <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
-                    <h2 style="color: var(--acc-blue); opacity: 0.5; letter-spacing: 10px;" class="neon-text">검색어를 입력하세요</h2>
-                    <p style="color: #555;">[ 지식 그래프 시각화 대기 중 ]</p>
-                </div>
-                <!-- 목 노드 -->
-                <div style="position: absolute; top: 20%; left: 30%; width: 10px; height: 10px; background: var(--acc-blue); border-radius: 50%; box-shadow: 0 0 10px var(--acc-blue);"></div>
-                <div style="position: absolute; top: 60%; left: 70%; width: 10px; height: 10px; background: var(--acc-green); border-radius: 50%; box-shadow: 0 0 10px var(--acc-green);"></div>
-                <div style="position: absolute; top: 40%; left: 50%; width: 15px; height: 15px; background: var(--acc-purple); border-radius: 50%; box-shadow: 0 0 15px var(--acc-purple);"></div>
-            </div>
-        """, unsafe_allow_html=True)
-    
-    st.divider()
-    
-    # 📚 최근 합성 데이터
-    st.write("### 📖 최근 지식 합성 내역")
-    
-    try:
-        recent_entities = kg.get_recent_entities(limit=4)
-        
-        if recent_entities:
-            cols = st.columns(2)
-            for i, entity in enumerate(recent_entities):
-                with cols[i % 2]:
-                    st.markdown(f"""
-                        <div class="glass-card">
-                            <h5 style="color: var(--acc-green);">[노드] {entity['entity']}</h5>
-                            <p style="font-size: 0.9rem; color: #888;">타입: {entity['entity_type']} | 생성: {entity.get('created_at', 'N/A')}</p>
-                            <p>{entity.get('metadata', {}).get('description', '설명 없음')}</p>
+                    # Update earliest time if needed
+                    if timestamp < nodes[source]["first_seen"]:
+                        nodes[source]["first_seen"] = timestamp
+
+                # Target Node (Metadata might be missing for target in this simple structure, so infer or set default)
+                if target not in nodes:
+                    # Simple inference for mock
+                    t_type = "person" if "Influencer" in target else ("platform" if "Web" in target or "Media" in target else "community")
+                    t_cred = 50 
+                    if "Media" in target: t_cred = 95
+                    elif "Web" in target: t_cred = 80
+                    elif "Community" in target: t_cred = 40
+                    
+                    nodes[target] = {
+                        "id": target, 
+                        "entity": target, 
+                        "entity_type": t_type, 
+                        "metadata": {"credibility": t_cred, "platform": "Unknown"},
+                        "first_seen": timestamp 
+                    }
+                
+                edges.append({
+                    "source": source,
+                    "target": target,
+                    "type": rel_type,
+                    "timestamp": timestamp
+                })
+
+            # 3. Origin Identification (Earliest Timestamp)
+            sorted_nodes = sorted(nodes.values(), key=lambda x: x['first_seen'])
+            if sorted_nodes:
+                origin_node = sorted_nodes[0]
+                origin_node['metadata']['is_origin'] = True
+                
+                # Origin Display
+                st.markdown(f"""
+                <div class="glass-card" style="border-left: 4px solid #FF4500; margin-bottom: 20px;">
+                    <h3 style="color: #FF4500; margin: 0;">🚨 최초 발원지 식별됨 (Origin Detected)</h3>
+                    <div style="display: flex; justify-content: space-between; align_items: center; margin-top: 10px;">
+                        <div>
+                            <p style="font-size: 1.2rem; font-weight: bold; margin: 0;">{origin_node['entity']}</p>
+                            <p style="color: #888; margin: 0;">발견 시각: {origin_node['first_seen']}</p>
                         </div>
-                    """, unsafe_allow_html=True)
-        else:
-            # 플레이스홀더
-            c1, c2 = st.columns(2)
-            with c1:
-                st.markdown("""
-                    <div class="glass-card">
-                        <h5 style="color: var(--acc-green);">[노드 싱크] HBM3e 제조 공정</h5>
-                        <p style="font-size: 0.9rem; color: #888;">합성 시간: 2시간 전 | 신뢰도: 94%</p>
-                        <p>SK 하이닉스 수율과 엔비디아 B200 타임라인 간의 연결 관계가 수립되었습니다. 시장 영향: 치명적.</p>
+                        <div style="text-align: right;">
+                            <span style="font-size: 0.9rem; color: #888;">신뢰도 점수 (Credibility)</span>
+                            <h2 style="margin: 0; color: #FF0055;">{origin_node['metadata']['credibility']}% (위험)</h2>
+                        </div>
                     </div>
+                </div>
                 """, unsafe_allow_html=True)
-            with c2:
-                st.markdown("""
-                    <div class="glass-card">
-                        <h5 style="color: var(--acc-blue);">[이벤트 GRAG] 미국 대선 변동성</h5>
-                        <p style="font-size: 0.9rem; color: #888;">합성 시간: 5시간 전 | 신뢰도: 82%</p>
-                        <p>경합 주 정서와 친환경 에너지 주식 선물 간의 상관관계가 매핑되었습니다. 권장 조치: 헤지.</p>
+
+            # 4. Graph Visualization
+            node_list = list(nodes.values())
+            try:
+                html_content = gv.create_graph(node_list, edges, height="600px")
+                gv.render(html_content, height=600)
+            except Exception as e:
+                st.error(f"시각화 오류: {e}")
+
+            # 5. Timeline View (Diffusion Log)
+            st.markdown("### ⏱️ 확산 타임라인 (Diffusion Timeline)")
+            sorted_edges = sorted(edges, key=lambda x: x['timestamp'])
+            
+            for edge in sorted_edges:
+                st.markdown(f"""
+                <div style="display: flex; align-items: center; margin-bottom: 10px; padding: 10px; background: rgba(255, 255, 255, 0.05); border-radius: 8px;">
+                    <div style="width: 150px; color: #aaa; font-size: 0.9rem;">{edge['timestamp'].split('T')[1]}</div>
+                    <div style="flex-grow: 1;">
+                        <span style="color: var(--acc-blue); font-weight: bold;">{edge['source']}</span>
+                        <span style="margin: 0 10px; color: #555;">➡️</span>
+                        <span style="color: #ccc;">{edge['type']}</span>
+                        <span style="margin: 0 10px; color: #555;">➡️</span>
+                        <span style="color: var(--acc-green); font-weight: bold;">{edge['target']}</span>
                     </div>
+                </div>
                 """, unsafe_allow_html=True)
-    except Exception as e:
-        st.warning(f"최근 데이터 로드 실패: {e}")
+                
+    else:
+        # Default Placeholder
+        st.info("좌측 상단의 검색창에 추적할 키워드를 입력하세요.")
+

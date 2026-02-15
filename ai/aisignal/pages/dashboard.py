@@ -38,7 +38,7 @@ def show():
     with c2:
         st.metric("오라클 정확도", "87.4%", delta="+0.2%")
     with c3:
-        st.metric("MCP 건전성", "4/5", delta="안정적")
+        st.metric("시스템 상태", "안정적", delta="정상")
     with c4:
         st.metric("윤리 준수율", "100%", delta="안전")
 
@@ -66,8 +66,8 @@ def show():
 
     st.divider()
 
-    # 🛰️ MCP 서버 모니터링
-    st.write("### 🛰️ MCP 인프라 실시간 모니터링")
+    # 🛰️ 시스템 인프라 실시간 모니터링
+    st.write("### 🛰️ 시스템 인프라 실시간 모니터링")
     mcp_data = get_mcp_status_from_db()
     
     if mcp_data:
@@ -81,8 +81,4 @@ def show():
                 </div>
             """, unsafe_allow_html=True)
     else:
-        st.caption("데이터베이스에서 MCP 상태 데이터를 찾을 수 없습니다. 헬스 체크를 실행해 주세요.")
-        if st.button("헬스 체크 실행"):
-             st.write("`mcp_health_check.py` 실행 중...")
-             os.system("python3 mcp_health_check.py")
-             st.rerun()
+        st.caption("데이터베이스에서 시스템 상태 데이터를 찾을 수 없습니다.")

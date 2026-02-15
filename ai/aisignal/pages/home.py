@@ -115,7 +115,8 @@ def show():
             ("인공지능 신약 개발", "단백질 구조 예측 AI 기술의 상용화 성공. 바이오테크 섹터 리레이팅 가능성.", "Stealth")
         ]
 
-    # 🏆 랭킹 리스트 렌더링
+
+
     st.markdown('<div class="ranking-container">', unsafe_allow_html=True)
     
     # Agent Name Mapping

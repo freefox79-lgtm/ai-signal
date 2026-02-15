@@ -28,6 +28,17 @@ class MockCursor:
                 ("MSFT", 410.5, 8.2),
                 ("GOOGL", 160.2, 12.4)
             ]
+        if 'issues' in self.query:
+             # id, category, title, pros_count, cons_count, agent_pros_count, agent_cons_count, is_closed
+             return [
+                 (1, "정치", "AI 기본법, 규제 강화 vs 혁신 지원?", 4520, 3120, 8000, 1500, False),
+                 (2, "경제", "금투세 폐지 확정, 개인 투자자 영향은?", 6890, 1240, 9200, 800, False),
+                 (3, "사회", "의대 증원 2천명, 의료 대란 해법인가?", 2340, 5670, 3100, 6900, False),
+                 (4, "문화", "K-컨텐츠 예산 삭감 논란", 1200, 890, 1500, 500, True),
+                 (5, "엔터", "버추얼 아이돌의 음악방송 출연 허용?", 3400, 2100, 4800, 1200, False),
+                 (6, "경제", "비트코인 ETF, 제도권 안착 성공인가?", 5600, 4800, 7000, 3000, True),
+                 (7, "사회", "저출산 대책, 현금 지원 실효성 논란", 1500, 6700, 2000, 8000, True)
+             ]
         if 'signals' in self.query:
             # Home.py: keyword, insight, agent (3 columns)
             # Intelligence.py (Jfit): keyword, insight (2 columns)
@@ -49,6 +60,17 @@ class MockCursor:
                     ("AI 칩셋", "차세대 H200 생산 가속화 중."),
                     ("메타버스", "가상 패션 플랫폼 거래량 폭증.")
                 ]
+
+        if 'origin_tracking' in self.query:
+             # id, source, target, type, confidence, timestamp, metadata
+             return [
+                 (1, "Telegram_User_X", "X_Influencer_A", "leaked_to", 0.3, "2024-05-20T09:00:00", {"credibility": 20, "platform": "Telegram"}),
+                 (2, "X_Influencer_A", "X_Community_B", "retweeted", 0.7, "2024-05-20T09:15:00", {"credibility": 60, "platform": "X"}),
+                 (3, "X_Community_B", "Reddit_Thread_C", "discussed_on", 0.6, "2024-05-20T09:45:00", {"credibility": 50, "platform": "Reddit"}),
+                 (4, "Reddit_Thread_C", "CryptoNews_Web", "cited_by", 0.8, "2024-05-20T10:30:00", {"credibility": 85, "platform": "Web News"}),
+                 (5, "CryptoNews_Web", "Mainstream_Media_D", "reported_by", 0.95, "2024-05-20T12:00:00", {"credibility": 98, "platform": "Mainstream"})
+             ]
+
         return []
 
     def __enter__(self): return self

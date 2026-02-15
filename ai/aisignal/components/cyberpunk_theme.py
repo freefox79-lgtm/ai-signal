@@ -167,6 +167,20 @@ def apply_cyberpunk_theme():
             justify-content: center;
         }
         
+        /* Mobile adjustment for Header Margin */
+        @media (max-width: 768px) {
+            .fixed-header {
+                padding-top: 25px !important; /* Move down a bit for status bar/notch */
+                height: 100px !important;
+            }
+            .header-spacer {
+                height: 160px !important;
+            }
+            div[data-baseweb="tab-list"], .stTabs [data-baseweb="tab-list"] {
+                top: 100px !important;
+            }
+        }
+        
         /* Spacer covers Header (85px) + Fixed Tabs (~55px) */
         .header-spacer {
             height: 140px !important; 
@@ -190,6 +204,33 @@ def apply_cyberpunk_theme():
             transition: top 0.2s ease;
             display: flex !important;
             justify-content: center !important;
+            
+            /* Responsive Swipeable Tabs Fix */
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            flex-wrap: nowrap !important;
+            scrollbar-width: none; /* Firefox */
+            -ms-overflow-style: none; /* IE/Edge */
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        /* Hide Scrollbar for Tabs List */
+        div[data-baseweb="tab-list"]::-webkit-scrollbar, 
+        .stTabs [data-baseweb="tab-list"]::-webkit-scrollbar {
+            display: none !important;
+        }
+
+        /* Adjust alignment for scrollable tabs */
+        @media (max-width: 900px) {
+            div[data-baseweb="tab-list"], .stTabs [data-baseweb="tab-list"] {
+                justify-content: flex-start !important;
+                padding-left: 20px !important;
+                padding-right: 20px !important;
+            }
+            div[data-baseweb="tab"] {
+                flex-shrink: 0 !important; /* Prevent tab squishing */
+                white-space: nowrap !important;
+            }
         }
         
         /* Fix for scroll anchor offset */
@@ -289,16 +330,16 @@ def apply_cyberpunk_theme():
 
         /* High contrast placeholders */
         ::placeholder {
-            color: var(--neon-cyan) !important;
-            opacity: 0.8 !important;
+            color: rgba(255, 255, 255, 0.45) !important;
+            opacity: 1 !important;
         }
         ::-webkit-input-placeholder {
-            color: var(--neon-cyan) !important;
-            opacity: 0.8 !important;
+            color: rgba(255, 255, 255, 0.45) !important;
+            opacity: 1 !important;
         }
         :-ms-input-placeholder {
-            color: var(--neon-cyan) !important;
-            opacity: 0.8 !important;
+            color: rgba(255, 255, 255, 0.45) !important;
+            opacity: 1 !important;
         }
         
         /* ========================================

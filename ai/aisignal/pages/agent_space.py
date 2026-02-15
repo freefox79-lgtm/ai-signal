@@ -164,92 +164,186 @@ def show():
     # Sub-tab Navigation (Radio as Description Boxes)
     st.markdown("""
     <style>
+        /* Hide the specific label for the radio widget */
+        div[data-testid="stRadio"] > label {
+            display: none !important;
+        }
+
         /* Hide default radio style */
-        .stRadio > div {
+        .stRadio > div[role="radiogroup"] {
+            display: flex;
             flex-direction: row;
+            flex-wrap: wrap; /* Auto-wrap */
             justify-content: center;
-            gap: 20px;
+            gap: 15px;
+            width: 100%;
         }
         .stRadio label {
             background: rgba(20, 30, 50, 0.6);
             border: 1px solid rgba(0, 255, 249, 0.2);
-            border-radius: 15px;
-            padding: 15px 30px;
+            border-radius: 12px;
+            padding: 12px 20px;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
             text-align: center;
-            width: 300px;
+            
+            /* Responsive Sizing */
+            flex: 1 1 200px; /* Grow, Shrink, Basis */
+            min-width: 200px;
+            max-width: 350px;
+            
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
         }
         .stRadio label:hover {
             background: rgba(0, 255, 249, 0.1);
             border-color: var(--neon-cyan);
             transform: translateY(-2px);
         }
-        /* Selected State */
+        /* Selected State - Visual feedback handled by Streamlit's internal structure varies, 
+           but we ensure the container layout remains stable */
         .stRadio div[role="radiogroup"] > label[data-baseweb="radio"] > div:first-child {
             display: none; /* Hide default radio circle */
         }
         
-        /* Custom Selected Highlight via Text Color/Border logic is handled by Streamlit's internal classes which are hard to override purely by CSS without :has(). 
-           Instead, we trust the visual distinction or add more specific hacks if needed. 
-           For now, we use a general card style. */
-           
-    </style>
+        /* Selected State Glow Effect */
+        div[role="radiogroup"] > label:has(input:checked) {
+            background: rgba(0, 10, 20, 0.8) !important; /* Darker background for visibility */
+            border-color: var(--neon-cyan) !important;
+            box-shadow: 0 0 15px var(--neon-cyan), inset 0 0 10px rgba(0, 255, 249, 0.2) !important;
+            color: #ffffff !important;
+            font-weight: 950 !important;
+            text-shadow: 0 0 8px rgba(0, 255, 249, 0.6);
+            transform: translateY(-2px);
+        }
+        
+        /* Ensure text inside selected label is white */
+        div[role="radiogroup"] > label:has(input:checked) div {
+            color: #ffffff !important;
+        }
     """, unsafe_allow_html=True)
 
+    # Dynamic Agent Selection Logic
+    # 1. Get unique agents from DB
+    if not df.empty and 'agent' in df.columns:
+        available_agents = df['agent'].unique()
+        # Sort to ensure consistent order (Jwem, Jfit, Stealth, others)
+        # Custom sort order: Jwem, Jfit, Stealth -> others alphabetically
+        priority = ['Jwem', 'Jwew', 'Jfit', 'Stealth']
+        available_agents = sorted(available_agents, key=lambda x: priority.index(x) if x in priority else 999)
+    else:
+        available_agents = ["Jwem", "Jfit"] # Fallback
+
+    # 2. Map agents to Display Labels & Colors
+    agent_config = {
+        "Jwem": {
+            "label": "📈 쥄 (Market Trends)",
+            "icon": "🏛️",
+            "desc": "Global Market Trend Analyst | Quantitative Logic | Blue Chip Focus",
+            "color": "var(--neon-cyan)",
+            "header": "🏛️ 쥄 (JWEM)"
+        },
+        "Jwew": { # Alias for Jwem
+             "label": "📈 쥄 (Market Trends)",
+             "icon": "🏛️",
+             "desc": "Global Market Trend Analyst | Quantitative Logic | Blue Chip Focus",
+             "color": "var(--neon-cyan)",
+             "header": "🏛️ 쥄 (JWEM)"
+        },
+        "Jfit": {
+            "label": "🔥 쥐핏 (Viral Buzz)",
+            "icon": "⚡",
+            "desc": "Viral Buzz Trend Setter | Qualitative Insight | Meme & Community Focus",
+            "color": "var(--neon-green)",
+            "header": "⚡ 쥐핏 (JFIT)"
+        },
+        "Stealth": {
+            "label": "🕵️ 스텔스 (Dark Web)",
+            "icon": "🕵️",
+            "desc": "Underground Intel | Dark Web Scanning | Asymmetric Info",
+            "color": "var(--neon-magenta)", # Need to ensure this variable exists or use hex
+            "header": "🕵️ 스텔스 (STEALTH)"
+        }
+    }
+
+    # 3. Generate Radio Options
+    radio_options = []
+    option_to_agent_map = {}
+    
+    # Handle aliases (deduplicate logic)
+    processed_agents = set()
+
+    for agent in available_agents:
+        # Normalize agent name
+        normalized_agent = "Jwem" if agent == "Jwew" else agent
+        
+        if normalized_agent in processed_agents:
+            continue
+            
+        config = agent_config.get(normalized_agent, {
+            "label": f"🤖 {normalized_agent} (Auto-Detected)",
+            "icon": "🤖",
+            "desc": f"Automated Agent Analysis | {normalized_agent} Engine",
+            "color": "#ffffff",
+            "header": f"🤖 {normalized_agent}"
+        })
+        
+        radio_options.append(config["label"])
+        option_to_agent_map[config["label"]] = normalized_agent
+        processed_agents.add(normalized_agent)
+
     # Custom "Description Box" Sub-menu
-    selected_agent = st.radio(
-        "Agent Selection",
-        ["📈 쥄 (Market Trends)", "🔥 쥐핏 (Viral Buzz)"],
+    # If no agents found, don't crash, just show empty
+    if not radio_options:
+        st.info("비활성 상태: 표시할 에이전트 데이터가 없습니다.")
+        return
+
+    # Add DB-driven Dynamic Radio
+    selected_label = st.radio(
+        "Agent Selection", # Label is hidden but required for accessibility
+        radio_options,
         horizontal=True,
         label_visibility="collapsed",
-        key="agent_radio"
+        key="agent_radio_dynamic"
     )
 
     st.markdown("---")
-
-    # 쥄 (Jwem) Content
-    if "쥄" in selected_agent:
-        st.markdown("""
-        <div style="background: rgba(0, 242, 255, 0.05); padding: 20px; border-radius: 10px; border: 1px solid var(--neon-cyan); margin-bottom: 30px; text-align: center;">
-            <h3 style="color: var(--neon-cyan); margin: 0;">🏛️ 쥄 (JWEM)</h3>
-            <p style="color: #ccc; margin-top: 5px;">Global Market Trend Analyst | Quantitative Logic | Blue Chip Focus</p>
+    
+    # Render Selected Content dynamically
+    selected_agent_key = option_to_agent_map.get(selected_label)
+    
+    if selected_agent_key:
+        config = agent_config.get(selected_agent_key, {
+            "desc": "No description available",
+            "color": "#ccc",
+            "header": selected_agent_key
+        })
+        
+        # Header Box
+        st.markdown(f"""
+        <div style="background: {config.get('color', '#444')}0D; padding: 20px; border-radius: 10px; border: 1px solid {config.get('color', '#444')}; margin-bottom: 30px; text-align: center;">
+            <h3 style="color: {config.get('color', '#fff')}; margin: 0;">{config['header']}</h3>
+            <p style="color: #ccc; margin-top: 5px;">{config['desc']}</p>
         </div>
         """, unsafe_allow_html=True)
-        
-        jwem_df = df[df['agent'].astype(str).str.lower().isin(['jwem', 'jwew'])]
-        
-        if not jwem_df.empty:
-            cols = st.columns(2)
-            for idx, row in jwem_df.reset_index().iterrows():
-                with cols[idx % 2]:
-                    with st.container():
-                        render_wiki_card(row, "Jwem")
-        else:
-            st.info("쥄의 기록이 없습니다.")
 
-    # 쥐핏 (Jfit) Content
-    elif "쥐핏" in selected_agent:
-        st.markdown("""
-        <div style="background: rgba(57, 255, 20, 0.05); padding: 20px; border-radius: 10px; border: 1px solid var(--neon-green); margin-bottom: 30px; text-align: center;">
-            <h3 style="color: var(--neon-green); margin: 0;">⚡ 쥐핏 (JFIT)</h3>
-            <p style="color: #ccc; margin-top: 5px;">Viral Buzz Trend Setter | Qualitative Insight | Meme & Community Focus</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        jfit_df = df[df['agent'].astype(str).str.lower() == 'jfit']
-        
-        if not jfit_df.empty:
+        # Filter Data
+        # Handle Jwem alias logic specifically for filtered dataframe
+        if selected_agent_key == "Jwem":
+             agent_df = df[df['agent'].astype(str).str.lower().isin(['jwem', 'jwew'])]
+        else:
+             agent_df = df[df['agent'].astype(str).str.lower() == selected_agent_key.lower()]
+
+        if not agent_df.empty:
             cols = st.columns(2)
-            for idx, row in jfit_df.reset_index().iterrows():
+            for idx, row in agent_df.reset_index().iterrows():
                 with cols[idx % 2]:
                     with st.container():
-                        render_wiki_card(row, "Jfit")
+                        render_wiki_card(row, selected_agent_key)
         else:
-            st.info("쥐핏의 기록이 없습니다.")
+            st.info(f"{selected_agent_key}의 기록단이 없습니다.")
 
 if __name__ == "__main__":
     st.set_page_config(layout="wide") # Standalone test support

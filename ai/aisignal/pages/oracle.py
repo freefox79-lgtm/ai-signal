@@ -1,4 +1,29 @@
 import streamlit as st
+import pandas as pd
+import sys
+import os
+import textwrap
+
+# 모듈 경로 문제 해결을 위해 루트 경로 추가
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from db_utils import get_db_connection
+
+def fetch_issues():
+    """DB에서 이슈 데이터를 가져옵니다."""
+    try:
+        conn = get_db_connection()
+        with conn.cursor() as cur:
+            cur.execute("SELECT id, category, title, pros_count, cons_count, agent_pros_count, agent_cons_count, is_closed FROM issues")
+            data = cur.fetchall()
+            columns = ['id', 'category', 'title', 'pros_count', 'cons_count', 'agent_pros_count', 'agent_cons_count', 'is_closed']
+            if data:
+                return pd.DataFrame(data, columns=columns)
+            else:
+                return pd.DataFrame(columns=columns)
+    except Exception as e:
+        st.error(f"이슈 데이터 로드 실패: {e}")
+        return pd.DataFrame()
 
 def show():
     # 🎯 핫이슈 네온 헤더
@@ -13,23 +38,35 @@ def show():
     st.markdown("""
     <style>
         /* Hide default radio style */
-        .stRadio > div {
+        div[data-testid="stRadio"] > label {
+            display: none !important;
+        }
+        .stRadio > div[role="radiogroup"] {
+            display: flex;
             flex-direction: row;
+            flex-wrap: wrap;
             justify-content: center;
-            gap: 20px;
+            gap: 15px;
+            width: 100%;
         }
         .stRadio label {
             background: rgba(30, 20, 50, 0.6);
             border: 1px solid rgba(157, 0, 255, 0.3);
-            border-radius: 15px;
-            padding: 15px 30px;
+            border-radius: 12px;
+            padding: 12px 20px;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
             text-align: center;
-            width: 300px;
+            
+            /* Responsive Sizing */
+            flex: 1 1 200px;
+            min-width: 200px;
+            max-width: 350px;
+            
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
         }
         .stRadio label:hover {
             background: rgba(157, 0, 255, 0.1);
@@ -40,13 +77,29 @@ def show():
         .stRadio div[role="radiogroup"] > label[data-baseweb="radio"] > div:first-child {
             display: none; /* Hide default radio circle */
         }
+        
+        /* Selected State Glow Effect */
+        div[role="radiogroup"] > label:has(input:checked) {
+            background: rgba(20, 0, 40, 0.9) !important;
+            border-color: var(--acc-purple) !important;
+            box-shadow: 0 0 20px var(--acc-purple), inset 0 0 10px rgba(157, 0, 255, 0.4) !important;
+            color: #ffffff !important;
+            transform: translateY(-2px);
+            z-index: 10;
+        }
+        
+        /* Make sure the label is clickable */
+        .stRadio label {
+            position: relative;
+            z-index: 5;
+        }
     </style>
     """, unsafe_allow_html=True)
 
     # Custom "Description Box" Sub-menu
     selected_oracle_tab = st.radio(
         "Oracle Section Selection",
-        ["📊 활성 마켓 (Active Market)", "🏆 탑 예측자 (Elite Predictors)"],
+        ["🔥 논란 이슈 (Issues)", "🏁 논란 종결 (Results)"],
         horizontal=True,
         label_visibility="collapsed",
         key="oracle_radio"
@@ -54,60 +107,147 @@ def show():
 
     st.markdown("---")
     
-    # 📊 활성 마켓 (Market) Content
-    if "활성 마켓" in selected_oracle_tab:
+    # 데이터 로드
+    df_issues = fetch_issues()
+    
+    if df_issues.empty:
+        st.info("현재 표시할 이슈 데이터가 없습니다.")
+        return
+
+    # 🔥 논란 이슈 (Voting) Content
+    if "논란 이슈" in selected_oracle_tab:
         st.markdown("""
         <div style="background: rgba(157, 0, 255, 0.05); padding: 20px; border-radius: 10px; border: 1px solid var(--acc-purple); margin-bottom: 30px; text-align: center;">
-            <h3 style="color: var(--acc-purple); margin: 0;">🛰️ 라이브 예측 노드 (Live Nodes)</h3>
-            <p style="color: #ccc; margin-top: 5px;">High Risk/Reward Signals | Real-time Market Prediction</p>
+            <h3 style="color: var(--acc-purple); margin: 0;">🗳️ 오늘의 논란 이슈 (Voting)</h3>
+            <p style="color: #ccc; margin-top: 5px;">찬성 vs 반대 | 당신의 의견을 투표하세요</p>
         </div>
         """, unsafe_allow_html=True)
         
-        # 마켓 카드 1
-        st.markdown("""
-            <div class="glass-card" style="border-left: 4px solid var(--acc-green);">
-                <div style="display: flex; justify-content: space-between;">
-                    <h4 style="margin:0;">AI 에이전트가 2026년까지 웹 트래픽의 50%를 점유할까요?</h4>
-                    <span class="neon-badge badge-green">HOT</span>
-                </div>
-                <p style="color: #888; margin: 10px 0;">확률: <b>68.4%</b> | 총 거래량: <b>42.5K SIGNAL</b></p>
-                <div style="display: flex; gap: 10px;">
-                    <button style="flex:1; background: var(--acc-green); color: black; border:none; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer;">BET YES</button>
-                    <button style="flex:1; background: rgba(255, 255, 255, 0.1); color: white; border:1px solid #444; padding: 10px; border-radius: 5px; cursor: pointer;">BET NO</button>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
-
-        # 마켓 카드 2
-        st.markdown("""
-            <div class="glass-card" style="border-left: 4px solid var(--acc-blue); margin-top: 20px;">
-                <div style="display: flex; justify-content: space-between;">
-                    <h4 style="margin:0;">미 연준이 2026년 3월에 금리를 인하할까요?</h4>
-                    <span class="neon-badge badge-blue">매크로</span>
-                </div>
-                <p style="color: #888; margin: 10px 0;">확률: <b>32.1%</b> | 총 거래량: <b>128K SIGNAL</b></p>
-                <div style="display: flex; gap: 10px;">
-                    <button style="flex:1; background: rgba(255, 255, 255, 0.1); color: white; border:1px solid #444; padding: 10px; border-radius: 5px; cursor: pointer;">BET YES</button>
-                    <button style="flex:1; background: var(--acc-blue); color: black; border:none; padding: 10px; border-radius: 5px; font-weight: bold; cursor: pointer;">BET NO</button>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
-
-    # 🏆 탑 예측자 (Leaders) Content
-    elif "탑 예측자" in selected_oracle_tab:
-        st.markdown("""
-        <div style="background: rgba(255, 215, 0, 0.05); padding: 20px; border-radius: 10px; border: 1px solid #FFD700; margin-bottom: 30px; text-align: center;">
-            <h3 style="color: #FFD700; margin: 0;">💎 엘리트 예측자 (Elite Predictors)</h3>
-            <p style="color: #ccc; margin-top: 5px;">Top Accuracy Rankers | Reputation Leaderboard</p>
-        </div>
-        """, unsafe_allow_html=True)
+        active_issues = df_issues[df_issues['is_closed'] == False]
         
-        st.table([
-            {"순위": "01", "사용자": "CyberShaman_99", "정확도": "96.4%", "포인트": "12,450", "트렌드": "🚀"},
-            {"순위": "02", "사용자": "NeonVortex", "정확도": "89.2%", "포인트": "8,120", "트렌드": "📈"},
-            {"순위": "03", "사용자": "LogicProphet", "정확도": "88.7%", "포인트": "7,900", "트렌드": "📉"},
-            {"순위": "04", "사용자": "MemeGod_X", "정확도": "84.1%", "포인트": "5,300", "트렌드": "🚀"},
-        ])
+        for idx, row in active_issues.iterrows():
+            # User Votes
+            u_total = row['pros_count'] + row['cons_count']
+            u_pros_pct = int((row['pros_count'] / u_total) * 100) if u_total > 0 else 50
+            u_cons_pct = 100 - u_pros_pct
+            
+            # Agent Votes
+            a_total = row['agent_pros_count'] + row['agent_cons_count']
+            a_pros_pct = int((row['agent_pros_count'] / a_total) * 100) if a_total > 0 else 50
+            a_cons_pct = 100 - a_pros_pct
+            
+            # Dynamic Colors based on majority
+            u_winner_color = "var(--neon-green)" if u_pros_pct >= u_cons_pct else "var(--neon-magenta)"
+            a_winner_color = "var(--neon-green)" if a_pros_pct >= a_cons_pct else "var(--neon-magenta)"
+            
+            html_active = f"""<div class="glass-card" style="margin-bottom: 25px; border-left: 5px solid var(--acc-purple); position: relative; overflow: hidden;">
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+<span class="wiki-tag" style="background: var(--acc-purple); color: black; font-weight: bold;">{row['category']}</span>
+<span style="color: #888; font-size: 0.8rem;">분석 시그널 ID: #ORC-{row['id']:03d}</span>
+</div>
+<h3 style="margin: 0 0 20px 0; font-size: 1.4rem; color: #fff;">{row['title']} <span style="font-size: 0.8rem; color: #555;">🔗</span></h3>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+<!-- User Sentiment Bar -->
+<div style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 10px;">
+<div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+<span style="font-size: 0.75rem; color: #aaa; font-family: 'Orbitron';">👤 HUMAN SENTIMENT</span>
+<span style="font-size: 0.75rem; color: #888;">{u_total:,}명 투표</span>
+</div>
+<div style="display: flex; align-items: center; gap: 10px;">
+<span style="color: {u_winner_color if u_pros_pct >= 50 else '#444'}; font-weight: bold; font-size: 0.9rem;">{u_pros_pct}%</span>
+<div style="flex-grow: 1; height: 12px; background: #222; border-radius: 6px; overflow: hidden; display: flex; box-shadow: inset 0 0 5px #000;">
+<div style="width: {u_pros_pct}%; background: linear-gradient(90deg, #00ff9f, #00bfff); opacity: {1 if u_pros_pct >= 50 else 0.3};"></div>
+<div style="width: {u_cons_pct}%; background: linear-gradient(90deg, #ff00ff, #ff0055); opacity: {1 if u_cons_pct > 50 else 0.3};"></div>
+</div>
+<span style="color: {u_winner_color if u_cons_pct > 50 else '#444'}; font-weight: bold; font-size: 0.9rem;">{u_cons_pct}%</span>
+</div>
+<div style="display: flex; justify-content: space-between; margin-top: 5px; font-size: 0.65rem; color: #555;">
+<span>찬성 (PROS)</span>
+<span>반대 (CONS)</span>
+</div>
+</div>
+
+<!-- Agent Sentiment Bar -->
+<div style="background: rgba(0, 255, 249, 0.05); padding: 12px; border-radius: 10px; border: 1px solid rgba(0, 255, 249, 0.1);">
+<div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+<span style="font-size: 0.75rem; color: var(--neon-cyan); font-family: 'Orbitron';">🤖 AGENT PREDICTION</span>
+<span style="font-size: 0.75rem; color: #888;">AI 퀀텀 분석 결과</span>
+</div>
+<div style="display: flex; align-items: center; gap: 10px;">
+<span style="color: {a_winner_color if a_pros_pct >= 50 else '#444'}; font-weight: bold; font-size: 0.9rem;">{a_pros_pct}%</span>
+<div style="flex-grow: 1; height: 12px; background: #222; border-radius: 6px; overflow: hidden; display: flex; box-shadow: inset 0 0 5px #000; border: 1px solid rgba(0, 255, 249, 0.2);">
+<div style="width: {a_pros_pct}%; background: #00fff9; box-shadow: 0 0 10px #00fff9; opacity: {1 if a_pros_pct >= 50 else 0.3};"></div>
+<div style="width: {a_cons_pct}%; background: #ff00ff; box-shadow: 0 0 10px #ff00ff; opacity: {1 if a_cons_pct > 50 else 0.3};"></div>
+</div>
+<span style="color: {a_winner_color if a_cons_pct > 50 else '#444'}; font-weight: bold; font-size: 0.9rem;">{a_cons_pct}%</span>
+</div>
+<div style="display: flex; justify-content: space-between; margin-top: 5px; font-size: 0.65rem; color: #555;">
+<span>AI 찬성</span>
+<span>AI 반대</span>
+</div>
+</div>
+</div>
+
+<div style="display: flex; gap: 15px;">
+<button style="flex: 1; background: rgba(0, 255, 159, 0.1); border: 1px solid #00ff9f; color: #00ff9f; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: 900; font-family: 'Orbitron'; letter-spacing: 1px; transition: all 0.3s;">👍 VOTE PROS</button>
+<button style="flex: 1; background: rgba(255, 0, 255, 0.1); border: 1px solid #ff00ff; color: #ff00ff; padding: 12px; border-radius: 8px; cursor: pointer; font-weight: 900; font-family: 'Orbitron'; letter-spacing: 1px; transition: all 0.3s;">👎 VOTE CONS</button>
+</div>
+</div>"""
+            
+            st.html(html_active)
+
+    # 🏁 논란 종결 (Results) Content
+    elif "논란 종결" in selected_oracle_tab:
+        st.markdown(textwrap.dedent("""
+            <div style="background: rgba(255, 215, 0, 0.05); padding: 20px; border-radius: 10px; border: 1px solid #FFD700; margin-bottom: 30px; text-align: center;">
+                <h3 style="color: #FFD700; margin: 0;">🏁 이슈 투표 결과 (Final Results)</h3>
+                <p style="color: #ccc; margin-top: 5px;">Closed Issues | Public Sentiment Analysis</p>
+            </div>
+        """).strip(), unsafe_allow_html=True)
         
-        st.divider()
-        st.caption("리더보드는 GraphRAG 검증에 따라 매일 UTC 00:00에 업데이트됩니다.")
+        closed_issues = df_issues[df_issues['is_closed'] == True]
+        
+        if closed_issues.empty:
+            st.info("종결된 이슈가 없습니다.")
+        
+        for idx, row in closed_issues.iterrows():
+            # User
+            u_total = row['pros_count'] + row['cons_count']
+            u_pros_pct = int((row['pros_count'] / u_total) * 100) if u_total > 0 else 50
+            u_cons_pct = 100 - u_pros_pct
+            
+            # Agent
+            a_total = row['agent_pros_count'] + row['agent_cons_count']
+            a_pros_pct = int((row['agent_pros_count'] / a_total) * 100) if a_total > 0 else 50
+            a_cons_pct = 100 - a_pros_pct
+            
+            winner_u = "찬성" if u_pros_pct > u_cons_pct else "반대"
+            winner_a = "찬성" if a_pros_pct > a_cons_pct else "반대"
+            
+            match_status = "결과 일치" if winner_u == winner_a else "결과 상충"
+            match_color = "var(--neon-green)" if winner_u == winner_a else "var(--neon-magenta)"
+            
+            html_closed = f"""<div class="glass-card" style="margin-bottom: 20px; border: 1px solid #444; opacity: 0.9; background: rgba(10,10,20,0.8);">
+<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+<span class="wiki-tag" style="background: #333; color: #aaa;">{row['category']} - 분석 완료</span>
+<span style="color: {match_color}; font-weight: bold; border: 1px solid {match_color}; padding: 3px 10px; border-radius: 5px; font-family: 'Orbitron'; font-size: 0.7rem;">{match_status}</span>
+</div>
+<h3 style="margin: 0 0 20px 0; color: #ddd;">{row['title']}</h3>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+<!-- Human Verdict -->
+<div style="background: rgba(255,255,255,0.02); padding: 10px; border-radius: 8px;">
+<div style="font-size: 0.7rem; color: #777; margin-bottom: 5px;">👤 USER VERDICT</div>
+<div style="font-size: 1.1rem; color: { 'var(--neon-green)' if winner_u == '찬성' else 'var(--neon-magenta)' }; font-weight: bold;">{winner_u} 우세 ({max(u_pros_pct, u_cons_pct)}%)</div>
+</div>
+
+<!-- Agent Verdict -->
+<div style="background: rgba(0,255,249,0.03); padding: 10px; border-radius: 8px; border-left: 2px solid var(--neon-cyan);">
+<div style="font-size: 0.7rem; color: #777; margin-bottom: 5px;">🤖 AGENT VERDICT</div>
+<div style="font-size: 1.1rem; color: { 'var(--neon-green)' if winner_a == '찬성' else 'var(--neon-magenta)' }; font-weight: bold;">{winner_a} 예측 ({max(a_pros_pct, a_cons_pct)}%)</div>
+</div>
+</div>
+</div>"""
+            
+            st.html(html_closed)
