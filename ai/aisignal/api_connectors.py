@@ -564,11 +564,11 @@ class APIConnectors:
             The following is a list of 'Signal Summaries' pre-processed by a Local AI Scout (Llama-3). 
             These summaries cover the latest Naver News and YouTube Trends for the keyword '{query}'.
             
-            [Signal Summaries]:
+            [Signal Summaries (Enriched by Local AI)]:
             {context_text}
             
             TASK:
-            Synthesize these local AI summaries into a high-level strategic insight. 
+            Synthesize these LOCAL AI SUMMARIES into a high-level strategic insight. 
             Do not just repeat the summaries. Connect the dots between the news and the video content.
             
             OUTPUT GUIDELINES:
@@ -938,7 +938,8 @@ class APIConnectors:
                         "source": item.get('source'),
                         "title": new_title,
                         "link": item.get('link'),
-                        "snippet": new_snippet
+                        "snippet": new_snippet,
+                        "enriched_by_ollama": True
                     })
                 else:
                     enriched_results.append(item) # Fallback to original
