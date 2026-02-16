@@ -734,95 +734,207 @@ class APIConnectors:
             print(f"[Shopping] Error: {e}")
             return []
 
+    def _refine_with_local_llm(self, raw_items: List[Dict]) -> List[Dict]:
+        """
+        [Stage 2: Refinement]
+        Uses Local LLM (Ollama) to deduplicate and clean raw trend data.
+        """
+        if self.mode == "MOCK":
+            return raw_items[:10]
+
+        # Optimize: Batch processing
+        # Create a prompt with the list of candidates
+        candidates_text = "\n".join([f"- {item['keyword']} ({item['source']})" for item in raw_items])
+        
+        ollama_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+        
+        prompt = f"""
+        You are a Data Cleaner.
+        Below is a list of raw trend keywords from various sources.
+        
+        TASKS:
+        1. Remove duplicates (e.g., "Bitcoin" and "BTC" -> keep "Bitcoin").
+        2. Remove generic/meaningless keywords (e.g., "Today", "News").
+        3. Standardize formatting.
+        4. Select the top 15 most distinct and interesting topics.
+        
+        RAW LIST:
+        {candidates_text}
+        
+        OUTPUT FORMAT:
+        Return ONLY a JSON array of strings. Example: ["Keyword1", "Keyword2", ...]
+        """
+        
+        payload = {
+            "model": "llama3.2:3b",
+            "prompt": prompt,
+            "stream": False,
+            "options": {"temperature": 0.1, "num_predict": 200},
+            "format": "json" # Force JSON output if supported, or rely on prompt
+        }
+        
+        try:
+            print(f"🧹 [Local AI] Refining {len(raw_items)} raw signals...")
+            response = requests.post(f"{ollama_url}/api/generate", json=payload, timeout=30)
+            if response.status_code == 200:
+                output = response.json().get("response", "")
+                # Flexible JSON parsing
+                import json
+                try:
+                    # Try to find JSON array in text
+                    start = output.find('[')
+                    end = output.rfind(']') + 1
+                    if start != -1 and end != -1:
+                        refined_keywords = json.loads(output[start:end])
+                        
+                        # Re-attach metadata from original items
+                        refined_items = []
+                        for kw in refined_keywords:
+                            # Find original item that matches best
+                            # Simple substring match or exact match
+                            original = next((i for i in raw_items if kw in i['keyword'] or i['keyword'] in kw), None)
+                            if original:
+                                # Create a copy with clean keyword
+                                new_item = original.copy()
+                                new_item['keyword'] = kw
+                                refined_items.append(new_item)
+                        
+                        print(f"✅ [Local AI] Refined to {len(refined_items)} unique trends.")
+                        return refined_items
+                except Exception as parse_e:
+                    print(f"⚠️ [Local AI] JSON Parse Failed: {parse_e}")
+                    pass
+        except Exception as e:
+            print(f"⚠️ [Local AI] Refinement Failed: {e}")
+            
+        return raw_items[:15] # Fallback
+
+    def _rank_with_gemini(self, candidates: List[Dict]) -> List[Dict]:
+        """
+        [Stage 3: Ranking & Scoring]
+        Uses Gemini to analyze impact, assign scores, and write insights.
+        """
+        if not self.gemini_key or not genai or self.mode == "MOCK":
+            return self._fallback_scoring(candidates)
+            
+        print(f"🗳️ [Cloud AI] Ranking {len(candidates)} candidates with Gemini...")
+        
+        # Construct Context
+        context = "\n".join([f"ID {i}: {item['keyword']} (Source: {item['source']})" for i, item in enumerate(candidates)])
+        
+        prompt = f"""
+        You are the Chief Analyst for 'AI Signal'.
+        Analyze these trend candidates and generate a 'Real-time Ranking'.
+        
+        CANDIDATES:
+        {context}
+        
+        TASKS:
+        1. Select the Top 10 most impactful trends.
+        2. Assign a 'Trend Score' (0-100%) based on virality, urgency, and macro impact.
+           - 90%+: Breaking News, Global Crisis, Major Tech Release.
+           - 70-89%: Viral Meme, Stock Surge, Popular Product.
+           - 50-69%: General News.
+        3. Write a 'Signal Insight' (1 short sentence, Korean) for each.
+        
+        OUTPUT FORMAT (JSON):
+        [
+          {{
+            "keyword": "Selected Keyword",
+            "score": 95,
+            "insight": "Insight text here",
+            "original_id": ID_NUMBER
+          }},
+          ...
+        ]
+        """
+        
+        try:
+             genai.configure(api_key=self.gemini_key)
+             model = genai.GenerativeModel('gemini-flash-latest')
+             response = model.generate_content(prompt, generation_config={"response_mime_type": "application/json"})
+             
+             import json
+             ranked_data = json.loads(response.text)
+             
+             final_list = []
+             for rank, r_item in enumerate(ranked_data):
+                 orig_id = r_item.get('original_id')
+                 if orig_id is not None and 0 <= orig_id < len(candidates):
+                     original = candidates[orig_id]
+                     original['avg_score'] = r_item.get('score', 80)
+                     original['related_insight'] = r_item.get('insight', original.get('related_insight'))
+                     original['keyword'] = r_item.get('keyword', original['keyword'])
+                     final_list.append(original)
+             
+             print(f"✅ [Cloud AI] Successfully ranked {len(final_list)} items.")
+             return final_list
+             
+        except Exception as e:
+            print(f"⚠️ [Cloud AI] Ranking Failed: {e}")
+            return self._fallback_scoring(candidates)
+
+    def _fallback_scoring(self, items):
+        """Simple deterministic scoring for fallback."""
+        for i, item in enumerate(items):
+            # Deterministic pseudo-random score based on keyword length + source
+            base = 70
+            if item['type'] == 'BREAKING': base += 20
+            elif item['type'] == 'VIRAL': base += 15
+            elif item['type'] == 'MACRO': base += 10
+            
+            item['avg_score'] = min(99, base - (i * 2)) # Decay by rank
+        return items
+
     def fetch_unified_trends(self):
         """
-        [Smart Signal Router]
-        Aggregates trends from all tiers:
-        1. DB Signals (Breaking/Real-time)
-        2. Google Trends (Macro/Daily) - via fetch_google_trends
-        3. YouTube (Viral/Media) - via fetch_youtube_trends (Cached 6h)
-        4. Naver Shopping (Consumption) - via fetch_naver_shopping
-        
-        Returns a sorted list of unified signal objects.
+        [Smart Signal Router 2.0]
+        Full Pipeline: Collect -> Refine (Local) -> Rank (Cloud) -> Display
         """
         print("🔍 [Unified] Aggregating signals from all sources...")
         
-        unified_list = []
+        raw_list = []
         
-        # 1. [Tier 1] Breaking Signals (DB)
-        db_signals = self.fetch_live_signals_from_db(limit=3)
-        unified_list.extend(db_signals)
+        # 1. Collect Data (Increased Limits)
+        db_signals = self.fetch_live_signals_from_db(limit=5)
+        raw_list.extend(db_signals)
         
-        # 2. [Tier 2] Shopping Trends (Naver)
-        # We use a rotating keyword or generic '트렌드' if specific keyword not provided
         shop_trends = self.fetch_naver_shopping("트렌드")
-        for item in shop_trends[:3]:
-             raw_keyword = item['keyword']
-             # Remove [bracketed] prefixes common in shopping
-             clean_keyword = re.sub(r'\[.*?\]', '', raw_keyword).strip()
-             if len(clean_keyword) > 20:
-                 clean_keyword = clean_keyword[:20] + "..."
-             item['keyword'] = clean_keyword
-             item['related_insight'] = self._generate_persona_comment("SHOPPING", clean_keyword, "Naver Shopping")
-        unified_list.extend(shop_trends[:3])
-        
-        # 3. [Tier 3] Viral (YouTube)
-        # Quota Protection: cached for 6h.
+        for item in shop_trends[:5]:
+             item['type'] = 'SHOPPING'
+             raw_list.append(item)
+             
         yt_trends = self.fetch_youtube_trends("trending")
         if yt_trends:
-            for item in yt_trends[:3]:
-                # Extract clean keyword from title (before | or :)
-                raw_title = item['title']
-                clean_keyword = re.split(r'[|#:]', raw_title)[0].strip()
-                if len(clean_keyword) > 20:
-                    clean_keyword = clean_keyword[:20] + "..."
-                    
-                unified_list.append({
-                    "keyword": clean_keyword,
-                    "avg_score": 92, # Viral high score
-                    "score_trend": "up",
-                    "related_insight": self._generate_persona_comment("VIRAL", clean_keyword, "YouTube"),
-                    "source": "YouTube",
-                    "type": "VIRAL",
-                    "link": f"https://www.youtube.com/watch?v={item['video_id']}"
-                })
+            for item in yt_trends[:5]:
+                item['type'] = 'VIRAL'
+                item['keyword'] = item['title'][:20] # Temp
+                item['link'] = f"https://www.youtube.com/watch?v={item['video_id']}"
+                raw_list.append(item)
         
-        # 4. [Tier 2/3] Macro (Google Trends)
         g_trends = self.fetch_google_trends()
         if g_trends:
-            for keyword in g_trends[:3]:
-                unified_list.append({
+            for keyword in g_trends[:5]:
+                raw_list.append({
                     "keyword": keyword,
-                    "avg_score": 88,
-                    "score_trend": "stable",
-                    "related_insight": self._generate_persona_comment("MACRO", keyword, "Google Trends"),
                     "source": "Google Trends",
                     "type": "MACRO",
-                    "link": f"https://trends.google.com/trends/explore?q={keyword}"
-                })
-
-        # 5. [Fallback/Supplement] Naver News (Standard Interest)
-        if len(unified_list) < 10:
-            n_trends = self.fetch_naver_search("속보")
-            for item in n_trends[:(10 - len(unified_list))]:
-                title = re.sub(r'<[^>]+>', '', item['title'])
-                unified_list.append({
-                    "keyword": title,
-                    "avg_score": 80,
-                    "score_trend": "down",
-                    "related_insight": self._generate_persona_comment("NEWS", title, "Naver News"),
-                    "source": "Naver News",
-                    "type": "NEWS",
-                    "link": item['link']
+                    "link": f"https://trends.google.com/trends/explore?q={keyword}",
+                    "related_insight": "Google 검색량 급증"
                 })
                 
-        # Final Sort: Priority Logic
-        # 1. Breaking (99+)
-        # 2. Viral (90+)
-        # 3. Rest by score
-        unified_list.sort(key=lambda x: x.get('avg_score', 0), reverse=True)
+        # 2. Refine (Local LLM)
+        refined_list = self._refine_with_local_llm(raw_list)
         
-        return unified_list[:15] # Return top 15 mixed
+        # 3. Rank (Cloud AI)
+        ranked_list = self._rank_with_gemini(refined_list)
+        
+        if not ranked_list:
+             # Just return refined or raw if ranking failed completely
+             return self._fallback_scoring(refined_list or raw_list)[:10]
+             
+        # Ensure we return top 10 as requested by the user
+        return ranked_list[:10]
 
     def _generate_persona_comment(self, type, keyword, source):
         """
