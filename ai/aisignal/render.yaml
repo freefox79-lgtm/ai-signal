@@ -1,10 +1,12 @@
 services:
   - type: web
-    name: aisignal
+    name: ai-signal
     env: docker
     region: singapore
     plan: starter
     branch: main
+    dockerContext: .
+    dockerfilePath: ./Dockerfile
     envVars:
       - key: PORT
         value: 8501
