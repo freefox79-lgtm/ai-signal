@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: aisignal
+    env: docker
+    region: singapore
+    plan: free
+    branch: main
+    envVars:
+      - key: PORT
+        value: 8501
+      - key: PYTHON_VERSION
+        value: 3.11.0
