@@ -5,8 +5,8 @@ services:
     region: singapore
     plan: starter
     branch: main
-    rootDir: ai/aisignal
     dockerContext: ai/aisignal
+    dockerfilePath: ai/aisignal/Dockerfile
     envVars:
       - key: PORT
         value: 8501
