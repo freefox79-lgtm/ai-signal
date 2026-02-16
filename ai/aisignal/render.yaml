@@ -3,7 +3,7 @@ services:
     name: aisignal
     env: docker
     region: singapore
-    plan: free
+    plan: starter
     branch: main
     envVars:
       - key: PORT
