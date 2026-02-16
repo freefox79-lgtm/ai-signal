@@ -776,7 +776,7 @@ class APIConnectors:
             )
             
             if output:
-                import json
+                
                 try:
                     start = output.find('[')
                     end = output.rfind(']') + 1
@@ -802,49 +802,94 @@ class APIConnectors:
         seen = set()
         fallback_list = []
         for item in raw_items:
-            # Use a simplified key for deduplication (first 10 chars, lowercase)
             k = item['keyword'][:10].lower()
             if k not in seen:
                 seen.add(k)
                 fallback_list.append(item)
         return fallback_list[:15]
 
-    def _rank_with_gemini(self, candidates: List[Dict]) -> List[Dict]:
+    def _analyze_with_local_expert(self, refined_items: List[Dict]) -> str:
         """
-        [Stage 3: Ranking & Scoring]
-        Uses Gemini to analyze impact, assign scores, and write insights.
+        [Stage 2.5: Deep Analysis]
+        Uses qwen2.5-coder:7b to find correlations and momentum.
         """
-        if not self.gemini_key or not genai or self.mode == "MOCK":
-            return self._fallback_scoring(candidates)
-            
-        print(f"🗳️ [Cloud AI] Ranking {len(candidates)} candidates with Gemini...")
+        if self.mode == "MOCK":
+            return "Mock Expert Report: Trends are showing high volatility in IT sector."
+
+        print(f"🧠 [Local Expert] Analyzing momentum with {self.ollama.MODEL_ANALYTIC}...")
         
-        # Construct Context
-        context = "\n".join([f"ID {i}: {item['keyword']} (Source: {item['source']})" for i, item in enumerate(candidates)])
+        context = "\n".join([f"- {i['keyword']} (Source: {i['source']}, Category: {i['type']})" for i in refined_items])
         
         prompt = f"""
-        You are the Chief Analyst for 'AI Signal'.
-        Analyze these trend candidates and generate a 'Real-time Ranking'.
+        You are a Senior Market Intelligence Analyst.
+        Analyze the following trend keywords and provide a deep " MOMENTUM REPORT".
         
-        CANDIDATES:
+        TRENDS:
         {context}
         
         TASKS:
-        1. Select the Top 10 most impactful trends.
-        2. Assign a 'Trend Score' (0-100%) based on virality, urgency, and macro impact.
-           - 90%+: Breaking News, Global Crisis, Major Tech Release.
-           - 70-89%: Viral Meme, Stock Surge, Popular Product.
-           - 50-69%: General News.
-        3. Write a 'Signal Insight' (1 short sentence, Korean) for each.
+        1. Group keywords into 2-3 logical clusters.
+        2. Identify 'Cross-Impact' (e.g., How does Trend A affect Trend B?).
+        3. Determine the 'Market Sentiment' (Bullish, Bearish, Neutral).
         
-        OUTPUT FORMAT (JSON):
+        OUTPUT FORMAT:
+        Provide a concise 3-4 sentence report in KOREAN. 
+        Focus on value-added insights, not just listing.
+        """
+        
+        try:
+            report = self.ollama.generate(
+                prompt=prompt,
+                model=self.ollama.MODEL_ANALYTIC,
+                temperature=0.3,
+                max_tokens=400
+            )
+            return report or "No deep analysis available."
+        except Exception as e:
+            print(f"⚠️ [Local Expert] Analysis Failed: {e}")
+            return "Local expert report generation failed."
+
+    def _rank_with_gemini(self, candidates: List[Dict], expert_report: str = "") -> List[Dict]:
+        """
+        [Stage 3: Ranking & Synthesis]
+        Uses Gemini to finalize ranking based on Expert Report.
+        """
+        if not candidates:
+            return []
+            
+        if self.mode == "MOCK":
+            # Give mock scores
+            for i, item in enumerate(candidates[:10]):
+                item['avg_score'] = 90 - (i * 5)
+                item['related_insight'] = "MOCK: Gemini synthesis complete."
+            return candidates[:10]
+
+        print("✨ [Cloud AI] Synthesizing final rankings with Gemini...")
+        
+        # Simplified context for Gemini
+        candidates_json = json.dumps([
+            {"id": i, "keyword": c['keyword'], "source": c['source']} 
+            for i, c in enumerate(candidates)
+        ], ensure_ascii=False)
+        
+        prompt = f"""
+        You are a Global Strategy AI. 
+        Review the following 'Local Expert Report' and trend candidates.
+        
+        [LOCAL EXPERT REPORT]
+        {expert_report}
+        
+        [CANDIDATES]
+        {candidates_json}
+        
+        TASKS:
+        1. Select the Top 10 trends that have the highest global impact.
+        2. Assign a Trend Score (0-100.0).
+        3. Write a single-sentence "Global Insight" in KOREAN that synthesizes the local expert's analysis with global context.
+        
+        OUTPUT FORMAT (JSON ARRAY ONLY):
         [
-          {{
-            "keyword": "Selected Keyword",
-            "score": 95,
-            "insight": "Insight text here",
-            "original_id": ID_NUMBER
-          }},
+          {{"original_id": 0, "score": 98.5, "insight": "글로벌 시장의..."}},
           ...
         ]
         """
@@ -854,7 +899,7 @@ class APIConnectors:
              model = genai.GenerativeModel('gemini-flash-latest')
              response = model.generate_content(prompt, generation_config={"response_mime_type": "application/json"})
              
-             import json
+             
              ranked_data = json.loads(response.text)
              
              final_list = []
@@ -908,7 +953,7 @@ class APIConnectors:
                 max_tokens=800
             )
             
-            import json
+            
             start = output.find('[')
             end = output.rfind(']') + 1
             ranked_data = json.loads(output[start:end])
@@ -941,14 +986,15 @@ class APIConnectors:
 
     def fetch_unified_trends(self):
         """
-        [Smart Signal Router 2.0]
-        Full Pipeline: Collect -> Refine (Local) -> Rank (Cloud) -> Display
+        [Hierarchical AI Pipeline]
+        Collect -> Refine (Local Fast) -> Analyze (Local Expert) -> Synthesis (Cloud)
         """
         print("🔍 [Unified] Aggregating signals from all sources...")
         
         raw_list = []
         
-        # 1. Collect Data (Increased Limits)
+        # 1. Collect Data
+        # ... (same collection logic) ...
         db_signals = self.fetch_live_signals_from_db(limit=5)
         for item in db_signals:
             if 'source' not in item: item['source'] = 'Database'
@@ -980,17 +1026,18 @@ class APIConnectors:
                     "related_insight": "Google 검색량 급증"
                 })
                 
-        # 2. Refine (Local LLM)
+        # 2. Refine (Local LLM - Llama 3.2 3B)
         refined_list = self._refine_with_local_llm(raw_list)
         
-        # 3. Rank (Cloud AI)
-        ranked_list = self._rank_with_gemini(refined_list)
+        # 2.5 Expert Analysis (Local LLM - Qwen 2.5 7B)
+        expert_report = self._analyze_with_local_expert(refined_list)
+        
+        # 3. Synthesis & Ranking (Cloud AI - Gemini)
+        ranked_list = self._rank_with_gemini(refined_list, expert_report)
         
         if not ranked_list:
-             # Just return refined or raw if ranking failed completely
              return self._fallback_scoring(refined_list or raw_list)[:10]
              
-        # Ensure we return top 10 as requested by the user
         return ranked_list[:10]
 
     def _generate_persona_comment(self, type, keyword, source):
