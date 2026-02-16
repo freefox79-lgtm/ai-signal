@@ -553,34 +553,33 @@ class APIConnectors:
         self._gemini_last_call = current_time
 
         try:
+            # 1. Local Expert Deep Analysis (Hierarchical Stage 2)
+            expert_report = self._analyze_search_momentum(query, search_results)
+
             genai.configure(api_key=self.gemini_key)
-            # Switch to 'gemini-flash-latest' alias for stable free tier access
             model = genai.GenerativeModel('gemini-flash-latest')
             
-            # Context Construction (Title + Snippet for deeper analysis)
-            # We use all provided enriched results (previously sliced to 6 in home.py)
+            # Context Construction
             context_text = "\n".join([f"- Title: {r.get('title', '')}\n  Summary: {r.get('snippet', '')}" for r in search_results])
             
             prompt = f"""
-            You are a 'Quantum Intelligence Analyst' in the AI Signal system.
+            You are a 'Global Strategy AI' in the AI Signal system.
+            Review the following 'Local Expert Momentum Report' and search context for '{query}'.
             
-            INPUT DATA:
-            The following is a list of 'Signal Summaries' pre-processed by a Local AI Scout (Llama-3). 
-            These summaries cover the latest Naver News and YouTube Trends for the keyword '{query}'.
+            [LOCAL EXPERT REPORT]
+            {expert_report}
             
-            [Signal Summaries (Enriched by Local AI)]:
+            [DETAILED SEARCH SIGNALS]
             {context_text}
             
             TASK:
-            Synthesize these LOCAL AI SUMMARIES into a high-level strategic insight. 
-            Do not just repeat the summaries. Connect the dots between the news and the video content.
+            Synthesize the Expert Report and raw signals into a high-level strategic insight. 
+            Connect the local analysis with global trends.
             
             OUTPUT GUIDELINES:
-            - **Role**: Cyberpunk/Sci-Fi Intelligence Officer.
-            - **Tone**: Professional, Insightful, slightly Dramatic but Accurate.
+            - **Tone**: Professional Intelligence Officer.
             - **Language**: Korean.
-            - **Format**: 2-3 powerful sentences.
-            - **Focus**: What is the underlying trend or 'Signal' emerging from this combined data?
+            - **Format**: 2-3 powerful, synthesis-heavy sentences.
             """
             
             response = model.generate_content(prompt)
@@ -848,6 +847,37 @@ class APIConnectors:
         except Exception as e:
             print(f"⚠️ [Local Expert] Analysis Failed: {e}")
             return "Local expert report generation failed."
+
+    def _analyze_search_momentum(self, query: str, results: List[Dict]) -> str:
+        """
+        [Stage 2: Expert Search Analysis]
+        Uses Qwen 2.5 7B to find deeper meaning in search results.
+        """
+        if self.mode == "MOCK":
+            return f"Expert Focus: Potential growth in '{query}' sector."
+
+        print(f"🧠 [Local Expert] Analyzing search momentum for '{query}'...")
+        
+        context = "\n".join([f"- {r.get('title')} ({r.get('snippet')})" for r in results[:5]])
+        
+        prompt = f"""
+        Analyze these search results for the keyword '{query}'. 
+        Identify the 'Hidden Momentum'—what is the real story behind these updates?
+        Answer in 2-3 short sentences in KOREAN.
+        
+        RESULTS:
+        {context}
+        """
+        
+        try:
+            return self.ollama.generate(
+                prompt=prompt,
+                model=self.ollama.MODEL_ANALYTIC,
+                temperature=0.3,
+                max_tokens=300
+            )
+        except:
+            return "Local expert analysis unavailable."
 
     def _rank_with_gemini(self, candidates: List[Dict], expert_report: str = "") -> List[Dict]:
         """
