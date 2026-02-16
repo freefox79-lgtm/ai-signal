@@ -2,40 +2,13 @@ services:
   - type: web
     name: ai-signal
     env: docker
+    region: singapore
+    plan: starter
+    branch: main
     rootDir: ai/aisignal
     dockerContext: ai/aisignal
     envVars:
+      - key: PORT
+        value: 8501
       - key: PYTHON_VERSION
-        value: 3.12.7
-      - key: STREAMLIT_SERVER_PORT
-        value: 10000
-      - key: SUPABASE_URL
-        fromConfig: supabase_url
-      - key: SUPABASE_KEY
-        fromConfig: supabase_key
-      - key: DATABASE_URL
-        fromConfig: database_url
-      - key: REDIS_URL
-        fromConfig: redis_url
-      - key: DB_MOCK_MODE
-        value: false
-      - key: API_STATUS
-        value: REAL
-      - key: NAVER_CLIENT_ID
-        fromConfig: naver_client_id
-      - key: NAVER_CLIENT_SECRET
-        fromConfig: naver_client_secret
-      - key: FRED_API_KEY
-        fromConfig: fred_api_key
-      - key: DATA_GO_KR_KEY
-        fromConfig: data_go_kr_key
-      - key: TELEGRAM_BOT_TOKEN
-        fromConfig: telegram_bot_token
-      - key: TELEGRAM_CHAT_ID
-        fromConfig: telegram_chat_id
-      - key: OPENWEATHER_KEY
-        fromConfig: openweather_key
-      - key: TMDB_KEY
-        fromConfig: tmdb_key
-      - key: YOUTUBE_API_KEY
-        fromConfig: youtube_api_key
+        value: 3.11.0
