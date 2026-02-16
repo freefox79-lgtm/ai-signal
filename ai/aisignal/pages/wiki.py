@@ -10,21 +10,14 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from agents.graphrag.knowledge_graph import KnowledgeGraph
 from agents.graphrag.hyperlink_generator import HyperlinkGenerator
 from components.graph_visualizer import GraphVisualizer
-from db_utils import get_db_connection
-import traceback
+from data_router import router
 
 def get_origin_data():
     """DB에서 이슈 확산 데이터를 가져옵니다."""
     try:
-        # GraphRAG 데이터는 로컬 Mac Mini DB(local)에서 관리
-        conn = get_db_connection(routing='local')
-        if not conn:
-            raise ValueError("Failed to establish local database connection")
-            
-        with conn.cursor() as cur:
-            cur.execute("SELECT * FROM origin_tracking") 
-            data = cur.fetchall()
-            return data
+        # DataRouter를 통해 로컬 Mac Mini DB(local)에서 GraphRAG 데이터 로드
+        data = router.execute_query("SELECT * FROM origin_tracking", table_hint='origin_tracking')
+        return data
     except Exception as e:
         st.error(f"데이터 로드 실패: {e}")
         return []

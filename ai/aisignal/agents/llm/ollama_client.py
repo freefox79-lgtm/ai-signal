@@ -32,6 +32,12 @@ except ImportError:
 class OllamaClient:
     """Ollama 로컬 LLM 클라이언트"""
     
+    # 모델 상수 (Mac Mini 최적화용)
+    MODEL_FAST = "llama3.2:3b"       # 고속 처리, 요약용
+    MODEL_ANALYTIC = "qwen2.5-coder:7b" # 복잡 로직, 정밀 분석용
+    MODEL_BALANCED = "mistral:7b"     # 범용 7B 모델
+    MODEL_EMBED = "nomic-embed-text" # 임베딩 전용
+    
     def __init__(
         self, 
         base_url: str = None,

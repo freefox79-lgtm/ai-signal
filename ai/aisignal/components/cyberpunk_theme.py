@@ -390,9 +390,9 @@ def apply_cyberpunk_theme():
             background: var(--bg-card);
         }
         
-        section[data-testid="stSidebar"], 
+        /* section[data-testid="stSidebar"], 
         [data-testid="stSidebarCollapseButton"],
-        [data-testid="collapsedControl"],
+        [data-testid="collapsedControl"], */
         .st-emotion-cache-12w0qpk,
         .st-emotion-cache-6qob1r,
         .stAppDeploy,

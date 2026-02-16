@@ -4,7 +4,7 @@ Cross-Validation Node for Multi-Agent Collaboration
 Implements the cross-validation mechanism between Jwem and Jfit agents.
 """
 
-from agents.jwem.portfolio_tracker import JwemPortfolio
+from agents.jwem.market_analyzer import JwemMarketAnalyzer
 from agents.jfit.trend_hunter import JfitTrendHunter
 from agents.agent_state import AgentState
 from langchain_core.messages import AIMessage
@@ -21,7 +21,7 @@ class CrossValidationNode:
     """
     
     def __init__(self):
-        self.jwem = JwemPortfolio()
+        self.jwem = JwemMarketAnalyzer()
         self.jfit = JfitTrendHunter()
     
     def validate_node(self, state: AgentState) -> AgentState:
@@ -140,7 +140,7 @@ class CrossValidationNode:
             "confidence_score": state.get('consensus_score', 0.0),
             "validation_notes": f"Verified by Jwem 📊, Enhanced by Jfit 🎭",
             "agents": {
-                "jwem": JwemPortfolio.PERSONA,
+                "jwem": JwemMarketAnalyzer.PERSONA,
                 "jfit": JfitTrendHunter.PERSONA
             }
         }

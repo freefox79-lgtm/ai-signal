@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 # 중앙 집중식 DB 유틸리티 임포트
 from db_utils import get_db_connection
 from cache_manager import CacheManager
+from agents.llm.ollama_client import get_ollama_client
 try:
     import google.generativeai as genai
 except ImportError:
@@ -42,6 +43,9 @@ class APIConnectors:
         self.min_interval = 1.0  # Default 1s between calls to avoid rate limits
         
         self.db_url = os.getenv("DATABASE_URL")
+        
+        # 로션 LLM 클라이언트 (Ollama)
+        self.ollama = get_ollama_client()
         
         # 중앙 집중식 DB 유틸리티 사용 - Connection is managed per request now
         self.conn = None # Deprecated: Do not use self.conn directly
@@ -737,16 +741,13 @@ class APIConnectors:
     def _refine_with_local_llm(self, raw_items: List[Dict]) -> List[Dict]:
         """
         [Stage 2: Refinement]
-        Uses Local LLM (Ollama) to deduplicate and clean raw trend data.
+        Uses Local LLM (llama3.2:3b) to deduplicate and clean raw trend data.
         """
         if self.mode == "MOCK":
             return raw_items[:10]
 
         # Optimize: Batch processing
-        # Create a prompt with the list of candidates
         candidates_text = "\n".join([f"- {item['keyword']} ({item['source']})" for item in raw_items])
-        
-        ollama_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
         
         prompt = f"""
         You are a Data Cleaner.
@@ -765,49 +766,48 @@ class APIConnectors:
         Return ONLY a JSON array of strings. Example: ["Keyword1", "Keyword2", ...]
         """
         
-        payload = {
-            "model": "llama3.2:3b",
-            "prompt": prompt,
-            "stream": False,
-            "options": {"temperature": 0.1, "num_predict": 200},
-            "format": "json" # Force JSON output if supported, or rely on prompt
-        }
-        
         try:
-            print(f"🧹 [Local AI] Refining {len(raw_items)} raw signals...")
-            response = requests.post(f"{ollama_url}/api/generate", json=payload, timeout=30)
-            if response.status_code == 200:
-                output = response.json().get("response", "")
-                # Flexible JSON parsing
+            print(f"🧹 [Local AI] Refining {len(raw_items)} signals using {self.ollama.MODEL_FAST}...")
+            output = self.ollama.generate(
+                prompt=prompt,
+                model=self.ollama.MODEL_FAST,
+                temperature=0.1,
+                max_tokens=200
+            )
+            
+            if output:
                 import json
                 try:
-                    # Try to find JSON array in text
                     start = output.find('[')
                     end = output.rfind(']') + 1
                     if start != -1 and end != -1:
                         refined_keywords = json.loads(output[start:end])
-                        
-                        # Re-attach metadata from original items
                         refined_items = []
                         for kw in refined_keywords:
-                            # Find original item that matches best
-                            # Simple substring match or exact match
                             original = next((i for i in raw_items if kw in i['keyword'] or i['keyword'] in kw), None)
                             if original:
-                                # Create a copy with clean keyword
                                 new_item = original.copy()
                                 new_item['keyword'] = kw
                                 refined_items.append(new_item)
                         
-                        print(f"✅ [Local AI] Refined to {len(refined_items)} unique trends.")
-                        return refined_items
+                        if refined_items:
+                            print(f"✅ [Local AI] Refined to {len(refined_items)} unique trends.")
+                            return refined_items
                 except Exception as parse_e:
                     print(f"⚠️ [Local AI] JSON Parse Failed: {parse_e}")
-                    pass
         except Exception as e:
             print(f"⚠️ [Local AI] Refinement Failed: {e}")
             
-        return raw_items[:15] # Fallback
+        # Fallback deduplication if LLM fails or parsing fails
+        seen = set()
+        fallback_list = []
+        for item in raw_items:
+            # Use a simplified key for deduplication (first 10 chars, lowercase)
+            k = item['keyword'][:10].lower()
+            if k not in seen:
+                seen.add(k)
+                fallback_list.append(item)
+        return fallback_list[:15]
 
     def _rank_with_gemini(self, candidates: List[Dict]) -> List[Dict]:
         """
@@ -872,6 +872,59 @@ class APIConnectors:
              
         except Exception as e:
             print(f"⚠️ [Cloud AI] Ranking Failed: {e}")
+            # High-quality Local Fallback using Qwen2.5-Coder
+            return self._rank_with_local_expert(candidates)
+
+    def _rank_with_local_expert(self, candidates: List[Dict]) -> List[Dict]:
+        """
+        [Stage 3 Fallback: Local Analytic Ranking]
+        Uses Qwen2.5-Coder:7b (Expert model) if Gemini is offline.
+        """
+        print(f"🛡️ [Local Expert] Ranking with {self.ollama.MODEL_ANALYTIC}...")
+        
+        context = "\n".join([f"ID {i}: {item['keyword']} (Source: {item['source']})" for i, item in enumerate(candidates)])
+        
+        prompt = f"""
+        Analyze these trend candidates as a Senior Data Analyst.
+        1. Select the Top 10 most impactful trends.
+        2. Assign a 'Trend Score' (0-100%).
+        3. Write a 'Signal Insight' (1 short sentence, Korean).
+        
+        CANDIDATES:
+        {context}
+        
+        OUTPUT FORMAT (JSON ONLY):
+        [
+          {{"keyword": "...", "score": 95, "insight": "...", "original_id": 0}},
+          ...
+        ]
+        """
+        
+        try:
+            output = self.ollama.generate(
+                prompt=prompt,
+                model=self.ollama.MODEL_ANALYTIC,
+                temperature=0.1,
+                max_tokens=800
+            )
+            
+            import json
+            start = output.find('[')
+            end = output.rfind(']') + 1
+            ranked_data = json.loads(output[start:end])
+            
+            final_list = []
+            for r_item in ranked_data:
+                orig_id = r_item.get('original_id')
+                if orig_id is not None and 0 <= orig_id < len(candidates):
+                    original = candidates[orig_id]
+                    original['avg_score'] = r_item.get('score', 80)
+                    original['related_insight'] = r_item.get('insight', original.get('related_insight'))
+                    original['keyword'] = r_item.get('keyword', original['keyword'])
+                    final_list.append(original)
+            return final_list
+        except Exception as e:
+            print(f"⚠️ [Local Expert] Failed: {e}")
             return self._fallback_scoring(candidates)
 
     def _fallback_scoring(self, items):
@@ -897,18 +950,22 @@ class APIConnectors:
         
         # 1. Collect Data (Increased Limits)
         db_signals = self.fetch_live_signals_from_db(limit=5)
-        raw_list.extend(db_signals)
+        for item in db_signals:
+            if 'source' not in item: item['source'] = 'Database'
+            raw_list.append(item)
         
         shop_trends = self.fetch_naver_shopping("트렌드")
         for item in shop_trends[:5]:
              item['type'] = 'SHOPPING'
+             item['source'] = 'Naver Shopping'
              raw_list.append(item)
              
         yt_trends = self.fetch_youtube_trends("trending")
         if yt_trends:
             for item in yt_trends[:5]:
                 item['type'] = 'VIRAL'
-                item['keyword'] = item['title'][:20] # Temp
+                item['source'] = 'YouTube'
+                item['keyword'] = item.get('keyword', item.get('title', 'YouTube Video')[:20])
                 item['link'] = f"https://www.youtube.com/watch?v={item['video_id']}"
                 raw_list.append(item)
         
@@ -980,32 +1037,17 @@ class APIConnectors:
 
     def enrich_search_results_with_ollama(self, results: List[Dict]):
         """
-        Uses Local LLM (Ollama) to rewrite titles and summarize snippets.
-        Model: llama3.2:3b (Fast & Efficient for Mac Mini)
+        Uses Local LLM (llama3.2:3b) to rewrite titles and summarize snippets.
         """
         if self.mode == "MOCK":
             return results
 
-        # OLLAMA_BASE_URL is usually http://aisignal-ollama:11434 inside container
-        # But if running locally (streamlit), it's localhost:11434.
-        # We try both or rely on env.
-        ollama_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-        if "aisignal-ollama" in ollama_url:
-             # If running in docker, use the container name. 
-             # But if this script is running on host (streamlit run app.py), it needs localhost.
-             # The user's env has http://aisignal-ollama:11434. 
-             # We should probably check if we are in docker or not. 
-             # For now, let's try a timeout.
-             pass
-
-        print(f"🦙 [Local LLM] Enriching {len(results)} results using llama3.2:3b...")
+        print(f"🦙 [Local LLM] Enriching {len(results)} results using {self.ollama.MODEL_FAST}...")
         
         enriched_results = []
         
         for item in results:
             try:
-                # Optimized prompt for speed
-                # Optimized prompt for speed
                 prompt = f"""
                 Rewrite the following search result into a catchy title and a 1-sentence summary in KOREAN.
                 Even if the input is English, valid output must be in KOREAN.
@@ -1018,48 +1060,34 @@ class APIConnectors:
                 SUMMARY: [New Summary in Korean]
                 """
                 
-                payload = {
-                    "model": "llama3.2:3b",
-                    "prompt": prompt,
-                    "stream": False,
-                    "options": {"temperature": 0.3, "num_predict": 60}
-                }
+                output = self.ollama.generate(
+                    prompt=prompt,
+                    model=self.ollama.MODEL_FAST,
+                    temperature=0.3,
+                    max_tokens=100
+                )
                 
-                # Try connection (handling both docker and local execution contexts)
-                response = None
-                try:
-                    response = requests.post(f"{ollama_url}/api/generate", json=payload, timeout=20)
-                except:
-                    # Fallback to localhost if aisignal-ollama fails (e.g. running outside docker)
-                    response = requests.post("http://localhost:11434/api/generate", json=payload, timeout=20)
-
-                if response and response.status_code == 200:
-                    output = response.json().get("response", "")
-                    
-                    # Parse simplified output
-                    new_title = item.get('title')
-                    new_snippet = item.get('snippet')
-                    
+                if output:
+                    new_title = ""
+                    new_summary = ""
                     for line in output.split('\n'):
-                        if line.startswith("TITLE:"):
-                            new_title = line.replace("TITLE:", "").strip()
-                        elif line.startswith("SUMMARY:"):
-                            new_snippet = line.replace("SUMMARY:", "").strip()
-                            
-                    enriched_results.append({
-                        "source": item.get('source'),
-                        "title": new_title,
-                        "link": item.get('link'),
-                        "snippet": new_snippet,
-                        "enriched_by_ollama": True
-                    })
-                else:
-                    enriched_results.append(item) # Fallback to original
+                        if "TITLE:" in line: new_title = line.replace("TITLE:", "").strip()
+                        if "SUMMARY:" in line: new_summary = line.replace("SUMMARY:", "").strip()
                     
+                    if new_title:
+                        enriched_results.append({
+                            "title": new_title,
+                            "snippet": new_summary or item.get('snippet'),
+                            "source": item.get('source'),
+                            "link": item.get('link'),
+                            "enriched_by_ollama": True
+                        })
+                        continue
             except Exception as e:
-                print(f"⚠️ [Local LLM] Failed to enrich items: {e}")
-                enriched_results.append(item)
-                
+                print(f"⚠️ Enrichment skipped for one item: {e}")
+            
+            enriched_results.append(item)
+            
         return enriched_results
 
 if __name__ == "__main__":

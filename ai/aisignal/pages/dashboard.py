@@ -1,23 +1,10 @@
 import streamlit as st
-import os, json
-import psycopg2
-from dotenv import load_dotenv
-import pandas as pd
-from db_utils import get_db_connection
-
+from data_router import router
 
 def get_mcp_status_from_db():
     try:
-        # 인프라 상태(MCP)는 로컬 Mac Mini DB(local)에서 관리
-        conn = get_db_connection(routing='local')
-        if not conn:
-            return []
-            
-        with conn.cursor() as cur:
-            cur.execute("SELECT server_name, status, last_health_check FROM mcp_status;")
-            data = cur.fetchall()
-            return data
-        conn.close()
+        # DataRouter를 통해 로컬 인프라 상태(MCP) 로드 (Mac Mini)
+        data = router.execute_query("SELECT server_name, status, last_health_check FROM mcp_status;", table_hint='mcp_status')
         return data
     except:
         return []

@@ -6,6 +6,8 @@ from dotenv import load_dotenv
 
 load_dotenv(".env.local")
 
+from db_utils import get_db_connection
+
 def check_supabase():
     url = os.getenv("SUPABASE_URL")
     key = os.getenv("SUPABASE_KEY")
@@ -36,7 +38,7 @@ def check_tunnel():
 
 if __name__ == "__main__":
     print("=== AI SIGNAL Inc. Connectivity Check ===")
-    print(check_local_db())
+    print(check_postgres())
     print(check_supabase())
     print(check_tunnel())
     print("=========================================")

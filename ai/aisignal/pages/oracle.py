@@ -7,33 +7,33 @@ import textwrap
 # 모듈 경로 문제 해결을 위해 루트 경로 추가
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from db_utils import get_db_connection
+from data_router import router
+import pandas as pd
 
 def fetch_issues():
     """DB에서 이슈 데이터를 가져옵니다."""
     try:
-        # 이슈 및 투표 데이터는 글로벌(default) DB에서 관리
-        conn = get_db_connection(routing='default')
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT id, category, title, 
-                       pros_count, cons_count, 
-                       agent_pros_count, agent_cons_count, 
-                       external_agent_pros_count, external_agent_cons_count,
-                       is_closed FROM issues
-            """)
-            data = cur.fetchall()
-            columns = [
-                'id', 'category', 'title', 
-                'pros_count', 'cons_count', 
-                'agent_pros_count', 'agent_cons_count', 
-                'external_agent_pros_count', 'external_agent_cons_count',
-                'is_closed'
-            ]
-            if data:
-                return pd.DataFrame(data, columns=columns)
-            else:
-                return pd.DataFrame(columns=columns)
+        # DataRouter를 통해 Supabase(default)에서 이슈 데이터 로드
+        data = router.execute_query("""
+            SELECT id, category, title, 
+                   pros_count, cons_count, 
+                   agent_pros_count, agent_cons_count, 
+                   external_agent_pros_count, external_agent_cons_count,
+                   is_closed FROM issues
+        """, table_hint='issues')
+        
+        columns = [
+            'id', 'category', 'title', 
+            'pros_count', 'cons_count', 
+            'agent_pros_count', 'agent_cons_count', 
+            'external_agent_pros_count', 'external_agent_cons_count',
+            'is_closed'
+        ]
+        
+        if data:
+            return pd.DataFrame(data, columns=columns)
+        else:
+            return pd.DataFrame(columns=columns)
     except Exception as e:
         st.error(f"이슈 데이터 로드 실패: {e}")
         return pd.DataFrame()

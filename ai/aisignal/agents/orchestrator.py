@@ -1,10 +1,13 @@
 import os
 import psycopg2
-from agents.jwem.portfolio_tracker import JwemPortfolio
+from agents.jwem.market_analyzer import JwemMarketAnalyzer
 from agents.jfit.trend_hunter import JfitTrendHunter
+from agents.stealth_crawler import StealthCrawler
 from api_connectors import APIConnectors
 from cache_manager import CacheManager
 from agents.sync_worker import SyncWorker
+from agents.persistence import save_trends
+from data_router import router
 
 class Orchestrator:
     """
@@ -14,8 +17,10 @@ class Orchestrator:
     def __init__(self):
         self.connectors = APIConnectors()
         self.cache = CacheManager()
-        self.jwem = JwemPortfolio()
+        self.jwem = JwemMarketAnalyzer()
+        self.jwem = JwemMarketAnalyzer()
         self.jfit = JfitTrendHunter()
+        self.stealth = StealthCrawler()
         self.sync_worker = SyncWorker()
 
     def process_signal_request(self, query):
@@ -28,28 +33,20 @@ class Orchestrator:
         """
         print(f"[ORCHESTRATOR] Starting Hybrid Pipeline for: {query}")
         
+        # 0. Stealth: Dark Web Scan (Asymmetric Intel)
+        print(f"[ORCHESTRATOR] 🕵️ Starting Stealth Scan...")
+        self.stealth.hunt_signals(query)
+
         # 1. Jfit: Trends
         trends = self.jfit.hunt_trends(query)
         
         # 2. Jwem: Portfolio Update
         self.jwem.update_prices()
         
-        # 3. Persist Trends locally for Syncing
-        conn = get_db_connection(os.getenv("DATABASE_URL"))
-        with conn.cursor() as cur:
-            for trend in trends:
-                cur.execute("""
-                    INSERT INTO signals (keyword, category, insight, agent, synced)
-                    VALUES (%s, %s, %s, %s, FALSE)
-                    ON CONFLICT (keyword) DO UPDATE SET
-                        insight = EXCLUDED.insight,
-                        synced = FALSE,
-                        updated_at = NOW()
-                """, (trend['content'], "TREND", trend['content'], "Jfit"))
-        conn.commit()
-        conn.close()
+        # 3. Persist Trends via Persistence Layer (Smart Routing)
+        save_trends(trends)
         
-        # 4. Sync: Push to Cloud
+        # 4. Sync: Push to Cloud (Backup sync)
         self.sync_worker.sync_to_supabase()
         
         return trends

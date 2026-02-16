@@ -105,10 +105,9 @@ class ScalingMonitor:
     def get_user_count(self) -> int:
         """사용자 수 조회 (Supabase)"""
         try:
-            conn = get_db_connection(routing='cloud')
-            with conn.cursor() as cur:
-                cur.execute("SELECT COUNT(*) FROM users")
-                count = cur.fetchone()[0]
+            from data_router import router
+            # DataRouter를 통해 Supabase에서 사용자 수 로드
+            count = router.execute_query("SELECT COUNT(*) FROM users", table_hint='user_settings')[0][0]
             return count
         except Exception as e:
             print(f"[ScalingMonitor] 사용자 수 조회 실패: {e}")

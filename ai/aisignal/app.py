@@ -22,6 +22,7 @@ apply_cyberpunk_theme()
 # 🛰️ Header Implementation
 render_header()
 
+
 # 🧭 네비게이션 시스템 (6개 탭 구조)
 tab_home, tab_intel, tab_agent, tab_oracle, tab_wiki, tab_dash = st.tabs([
     "🏠 홈", 

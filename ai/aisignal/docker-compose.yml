@@ -133,20 +133,14 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: aisignal-app
+    env_file:
+      - .env.production
     environment:
       - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@aisignal-postgres:5432/${DB_NAME:-aisignal}
       - REDIS_HOST=aisignal-redis
       - REDIS_PASSWORD=${REDIS_PASSWORD:-aisignal2026_secure}
       - OLLAMA_BASE_URL=http://aisignal-ollama:11434
       - DB_MOCK_MODE=false
-      - NAVER_CLIENT_ID=${NAVER_CLIENT_ID}
-      - NAVER_CLIENT_SECRET=${NAVER_CLIENT_SECRET}
-      - ALPHA_VANTAGE_API_KEY=${ALPHA_VANTAGE_API_KEY}
-      - FRED_API_KEY=${FRED_API_KEY}
-      - GITHUB_TOKEN=${GITHUB_TOKEN}
-      - YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
-      - OPENWEATHER_KEY=${OPENWEATHER_KEY}
-      - TMDB_KEY=${TMDB_KEY}
     ports:
       - "8501:8501"
     volumes:
@@ -160,6 +154,9 @@ services:
         condition: service_healthy
       ollama:
         condition: service_healthy
+    extra_hosts:
+      - "db.aisignal.kr:host-gateway"
+      - "ai.aisignal.kr:host-gateway"
 
   # ========================================
   # Scheduler API (FastAPI)
@@ -183,6 +180,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    extra_hosts:
+      - "db.aisignal.kr:host-gateway"
+      - "ai.aisignal.kr:host-gateway"
 
 networks:
   aisignal-network:

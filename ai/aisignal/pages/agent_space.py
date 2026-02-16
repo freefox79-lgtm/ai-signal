@@ -2,63 +2,37 @@ import streamlit as st
 import pandas as pd
 import sys
 import os
+from data_router import router
+from components.cyberpunk_theme import apply_cyberpunk_theme, create_neon_header
 
 # 모듈 경로 문제 해결을 위해 루트 경로 추가
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from db_utils import get_db_connection
-
-# 페이지 설정 (Deprecated: integrated into app.py)
-# st.set_page_config(
-#     page_title="Agent Space | AI SIGNAL",
-#     page_icon="🧠",
-#     layout="wide",
-#     initial_sidebar_state="collapsed"
-# )
-
-# CSS 로드
-# CSS 로드
-try:
-    from components.cyberpunk_theme import apply_cyberpunk_theme, create_neon_header
-    apply_cyberpunk_theme()
-except ImportError as e:
-    st.error(f"테마 로드 실패: {e}")
-    # Fallback functions
-    def apply_cyberpunk_theme(): pass
-    def create_neon_header(title, subtitle=None):
-        st.title(title)
-        if subtitle: st.caption(subtitle)
-
-def render_header_inline():
-    st.markdown("""
-        <div class="fixed-header">
-            <h1 class="neon-text" style="color: var(--acc-green); font-size: 2.8rem; margin-bottom: 0; filter: drop-shadow(0 0 10px var(--acc-green));">AI SIGNAL INC.</h1>
-            <p style="color: #666; letter-spacing: 8px; font-weight: 300; text-transform: uppercase; font-family: 'Orbitron', sans-serif; font-size: 0.75rem; margin-top: -8px;">Hybrid Intelligence Infrastructure</p>
-        </div>
-        <div class="header-spacer"></div>
-    """, unsafe_allow_html=True)
-
 def fetch_signals_safe():
     """DB에서 시그널 데이터를 가져옵니다."""
     try:
-        conn = get_db_connection(routing='default')
-        if not conn:
-             return pd.DataFrame()
+        # DataRouter를 통해 시그널 데이터 로드 (Supabase)
+        data = router.execute_query("SELECT keyword, insight, agent FROM signals ORDER BY updated_at DESC LIMIT 50", table_hint='signals')
         
-        with conn.cursor() as cur:
-            cur.execute("SELECT keyword, insight, agent FROM signals ORDER BY updated_at DESC LIMIT 50")
-            data = cur.fetchall()
+        # DataFrame 변환
+        columns = ['keyword', 'insight', 'agent']
+        if data:
+            df = pd.DataFrame(data, columns=columns)
+            # 1. Normalize Agent Name (Title Case)
+            if 'agent' in df.columns:
+                df['agent'] = df['agent'].astype(str).str.title()
             
-            # Mock Data Column Definition
-            columns = ['keyword', 'insight', 'agent']
+            # 2. Cleanup HTML tags in keyword/insight
+            if 'keyword' in df.columns:
+                 df['keyword'] = df['keyword'].astype(str).str.replace(r'<[^>]*>', '', regex=True)
             
-            # DataFrame 변환
-            if data:
-                df = pd.DataFrame(data, columns=columns)
-            else:
-                 df = pd.DataFrame(columns=columns)
+            # 3. Filter out obviously bad data (Debug messages)
+            # Remove rows where keyword is likely a log message
+            mask = ~df['keyword'].str.contains(r'^(Error|Exception|Starting|Finished)', case=False)
+            df = df[mask]
+        else:
+            df = pd.DataFrame(columns=columns)
                  
-        conn.close()
         return df
     except Exception as e:
         st.error(f"데이터 로드 실패: {e}")
@@ -330,20 +304,23 @@ def show():
         """, unsafe_allow_html=True)
 
         # Filter Data
-        # Handle Jwem alias logic specifically for filtered dataframe
+        # agent column is already Title Cased by fetch_signals_safe
         if selected_agent_key == "Jwem":
-             agent_df = df[df['agent'].astype(str).str.lower().isin(['jwem', 'jwew'])]
+             # Handle aliases if they still exist (though Title Case should unify 'jwem' -> 'Jwem')
+             agent_df = df[df['agent'].isin(['Jwem', 'Jwew'])]
         else:
-             agent_df = df[df['agent'].astype(str).str.lower() == selected_agent_key.lower()]
+             agent_df = df[df['agent'] == selected_agent_key]
 
         if not agent_df.empty:
             cols = st.columns(2)
-            for idx, row in agent_df.reset_index().iterrows():
-                with cols[idx % 2]:
-                    with st.container():
-                        render_wiki_card(row, selected_agent_key)
+            row_idx = 0
+            for _, row in agent_df.iterrows():
+                # Dedup by keyword for display if needed, but db updated_at sort helps
+                with cols[row_idx % 2]:
+                    render_wiki_card(row, selected_agent_key)
+                row_idx += 1
         else:
-            st.info(f"{selected_agent_key}의 기록단이 없습니다.")
+            st.info(f"{selected_agent_key}의 분석 기록이 없습니다.")
 
 if __name__ == "__main__":
     st.set_page_config(layout="wide") # Standalone test support
