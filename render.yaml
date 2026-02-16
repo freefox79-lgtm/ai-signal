@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: ai-signal-odf5
+    name: ai-signal
     env: docker
     rootDir: ai/aisignal
     dockerContext: ai/aisignal
