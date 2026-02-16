@@ -2,6 +2,7 @@ import os
 import requests
 import json
 import time
+import re
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
@@ -9,8 +10,14 @@ from dotenv import load_dotenv
 # 중앙 집중식 DB 유틸리티 임포트
 from db_utils import get_db_connection
 from cache_manager import CacheManager
+try:
+    import google.generativeai as genai
+except ImportError:
+    genai = None
 
-load_dotenv(".env.local")
+# Load local env only for development fallback
+if os.path.exists(".env.local"):
+    load_dotenv(".env.local", override=False)
 
 cache = CacheManager()
 
@@ -27,21 +34,17 @@ class APIConnectors:
         self.fred_key = os.getenv("FRED_API_KEY")
         self.youtube_key = os.getenv("YOUTUBE_API_KEY")
         self.public_data_key = os.getenv("DATA_GO_KR_KEY")
+        self.public_data_key = os.getenv("DATA_GO_KR_KEY")
+        self.brave_key = os.getenv("BRAVE_API_KEY")
+        self.gemini_key = os.getenv("GEMINI_API_KEY")
         self.mode = mode or os.getenv("API_STATUS", "MOCK").upper()
         self.last_call_time = 0.0
         self.min_interval = 1.0  # Default 1s between calls to avoid rate limits
         
         self.db_url = os.getenv("DATABASE_URL")
         
-        # 중앙 집중식 DB 유틸리티 사용
-        try:
-            if self.db_url:
-                self.conn = get_db_connection(self.db_url)
-            else:
-                self.conn = None
-        except Exception as e:
-            print(f"[APIConnectors] DB 연결 실패 (연결 없이 계속): {e}")
-            self.conn = None
+        # 중앙 집중식 DB 유틸리티 사용 - Connection is managed per request now
+        self.conn = None # Deprecated: Do not use self.conn directly
 
         # Load source registry from database
         self.source_registry = self._load_source_registry()
@@ -96,33 +99,29 @@ class APIConnectors:
             return
         
         try:
-            # Use self.conn if available, otherwise try to connect
-            if self.conn:
-                conn = self.conn
-            else:
-                conn = get_db_connection(self.db_url)
-            
-            source_id = self.source_registry[source_name]['source_id']
-            
-            with conn.cursor() as cur:
-                if success:
-                    cur.execute("""
-                        UPDATE source_health
-                        SET last_success_at = NOW(),
-                            consecutive_failures = 0,
-                            avg_response_time_ms = COALESCE(
-                                (avg_response_time_ms * 0.9 + %s * 0.1)::INTEGER, 
-                                %s
-                            ),
-                            total_requests_24h = total_requests_24h + 1,
-                            status = 'HEALTHY',
-                            updated_at = NOW()
-                        WHERE source_id = %s
-                    """, (response_time_ms, response_time_ms, source_id))
-                else:
-                    cur.execute("""
-                        UPDATE source_health
-                        SET last_failure_at = NOW(),
+            # Always get a fresh connection for health updates to avoid reusing closed connections
+            with get_db_connection(self.db_url) as conn:
+                source_id = self.source_registry[source_name]['source_id']
+                
+                with conn.cursor() as cur:
+                    if success:
+                        cur.execute("""
+                            UPDATE source_health
+                            SET last_success_at = NOW(),
+                                consecutive_failures = 0,
+                                avg_response_time_ms = COALESCE(
+                                    (avg_response_time_ms * 0.9 + %s * 0.1)::INTEGER, 
+                                    %s
+                                ),
+                                total_requests_24h = total_requests_24h + 1,
+                                status = 'HEALTHY',
+                                updated_at = NOW()
+                            WHERE source_id = %s
+                        """, (response_time_ms, response_time_ms, source_id))
+                    else:
+                        cur.execute("""
+                            UPDATE source_health
+                            SET last_failure_at = NOW(),
                             consecutive_failures = consecutive_failures + 1,
                             last_error_message = %s,
                             last_error_code = %s,
@@ -136,9 +135,7 @@ class APIConnectors:
                         WHERE source_id = %s
                     """, (error_msg, error_code, source_id))
                 
-                conn.commit()
-            
-            conn.close()
+                    conn.commit()
             
         except Exception as e:
             print(f"[APIConnectors] Error updating source health: {e}")
@@ -286,8 +283,8 @@ class APIConnectors:
             print(f"[ERROR] FRED Fetch Failed: {e}")
             return {}
 
-    @cache.cached(source="YouTube", expiry=43200)
-    def fetch_youtube_trends(self, query: str):
+    @cache.cached(source="YouTube", expiry=21600)  # 6 Hours Cache for Quota Protection
+    def fetch_youtube_trends(self, query: str = "trending"):
         """
         Fetches trending videos and basic metrics from YouTube Data API.
         """
@@ -337,6 +334,33 @@ class APIConnectors:
             print(f"[ERROR] YouTube Fetch Failed: {e}")
             return []
 
+    @cache.cached(source="PublicData", expiry=86400) # 24h as these update monthly/daily
+    def fetch_apt_transactions(self, lawd_cd: str = "11110", deal_ymd: str = "202602"):
+        """
+        Fetches APT transaction data (아파트 매매 실거래가).
+        Default: Jongno-gu, Feb 2026.
+        """
+        endpoint = "http://openapi.molit.go.kr:8081/OpenAPI_ToolInstallPackage/service/rest/RTMSOBJSvc/getRTMSDataSvcAptTrade"
+        params = {
+            "LAWD_CD": lawd_cd,
+            "DEAL_YMD": deal_ymd
+        }
+        # Data.go.kr XML responses need careful parsing or forcing json if supported
+        return self.fetch_public_data(endpoint, params)
+
+    @cache.cached(source="PublicData", expiry=86400)
+    def fetch_shopping_district(self, div_id: str = "11110"):
+        """
+        Fetches Commercial District Info (소상공인시장진흥공단_상권정보).
+        """
+        endpoint = "http://apis.data.go.kr/B553077/api/open/sdsc2/baroApi"
+        params = {
+            "resType": "json",
+            "catId": "dong",
+            "divId": div_id
+        }
+        return self.fetch_public_data(endpoint, params)
+        
     @cache.cached(source="PublicData", expiry=3600)
     def fetch_public_data(self, endpoint_url: str, params: Dict[str, Any]):
         """
@@ -419,6 +443,12 @@ class APIConnectors:
             ids = params.get("ids", "bitcoin")
             return self.fetch_crypto_prices(ids)
             
+        elif source_key == "search":
+            query = params.get("query")
+            if not query:
+                return []
+            return self.unified_search(query)
+            
         else:
             print(f"[APIConnectors] Unknown source: {source_name}")
             return {}
@@ -431,7 +461,7 @@ class APIConnectors:
         if self.mode == "MOCK":
             return ["알트코인", "AI 에이전트", "삼성전자", "테슬라", "비트코인"]
 
-        url = "https://trends.google.com/trends/trendingsearches/daily/rss"
+        url = "https://trends.google.co.kr/trends/trendingsearches/daily/rss"
         params = {"geo": geo}
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -464,12 +494,465 @@ class APIConnectors:
             {"source": "Kakao", "content": f"MOCK: {keyword} 관련 선물하기 랭킹 급상승"}
         ]
 
+    @cache.cached(source="Brave", expiry=3600)
+    def fetch_brave_search(self, query: str):
+        """Fetches search results from Brave Search API."""
+        if self.mode == "MOCK":
+            return [{"source": "Brave", "title": f"MOCK: {query} Brave 분석", "link": "https://brave.com"}]
+
+        if not self.brave_key:
+            print("⚠️ [Brave] API Key is missing.")
+            return []
+
+        self._throttle()
+        url = "https://api.search.brave.com/res/v1/web/search"
+        headers = {"X-Subscription-Token": self.brave_key, "Accept": "application/json"}
+        params = {"q": query, "count": 10}
+        
+        start_time = time.time()
+        try:
+            response = requests.get(url, headers=headers, params=params, timeout=5)
+            response_time_ms = int((time.time() - start_time) * 1000)
+            if response.status_code == 200:
+                self._update_source_health("brave_search", True, response_time_ms)
+                results = response.json().get("web", {}).get("results", [])
+                return [{"source": "Brave", "title": r.get("title"), "link": r.get("url"), "snippet": r.get("description")} for r in results]
+            else:
+                self._update_source_health("brave_search", False, response_time_ms, f"HTTP {response.status_code}")
+                return []
+        except Exception as e:
+            print(f"[Brave] Exception: {e}")
+            return []
+
+    @cache.cached(source="Gemini", expiry=3600)
+    def fetch_gemini_analysis(self, query: str, search_results: List[Dict]):
+        """
+        Uses Google Gemini to generate a 'Quantum Analysis' based on search context.
+        """
+        if self.mode == "MOCK":
+            return f"MOCK ANALYSIS: {query}에 대한 퀀텀 분석 결과 (Mock Mode)..."
+
+        if not self.gemini_key or not genai:
+            return "⚠️ Gemini API Key가 설정되지 않았거나 라이브러리가 설치되지 않았습니다."
+
+        # RATE LIMITING (Free Tier Safety: 15 RPM)
+        current_time = time.time()
+        # Initialize token bucket if not exists
+        if not hasattr(self, '_gemini_last_call'):
+            self._gemini_last_call = 0
+        
+        # Enforce 4 seconds between calls (conservative 15 RPM = 60s/15 = 4s)
+        time_since_last = current_time - self._gemini_last_call
+        if time_since_last < 4.0:
+            return f"⏳ 퀀텀 분석 쿨다운 중... ({int(4.0 - time_since_last)}초 대기)"
+            
+        self._gemini_last_call = current_time
+
+        try:
+            genai.configure(api_key=self.gemini_key)
+            # Switch to 'gemini-flash-latest' alias for stable free tier access
+            model = genai.GenerativeModel('gemini-flash-latest')
+            
+            # Context Construction (Title + Snippet for deeper analysis)
+            # We use all provided enriched results (previously sliced to 6 in home.py)
+            context_text = "\n".join([f"- Title: {r.get('title', '')}\n  Summary: {r.get('snippet', '')}" for r in search_results])
+            
+            prompt = f"""
+            You are a 'Quantum Intelligence Analyst' in the AI Signal system.
+            
+            INPUT DATA:
+            The following is a list of 'Signal Summaries' pre-processed by a Local AI Scout (Llama-3). 
+            These summaries cover the latest Naver News and YouTube Trends for the keyword '{query}'.
+            
+            [Signal Summaries]:
+            {context_text}
+            
+            TASK:
+            Synthesize these local AI summaries into a high-level strategic insight. 
+            Do not just repeat the summaries. Connect the dots between the news and the video content.
+            
+            OUTPUT GUIDELINES:
+            - **Role**: Cyberpunk/Sci-Fi Intelligence Officer.
+            - **Tone**: Professional, Insightful, slightly Dramatic but Accurate.
+            - **Language**: Korean.
+            - **Format**: 2-3 powerful sentences.
+            - **Focus**: What is the underlying trend or 'Signal' emerging from this combined data?
+            """
+            
+            response = model.generate_content(prompt)
+            return response.text.strip()
+            
+        except Exception as e:
+            print(f"[Gemini] Error: {e}")
+            return f"❌ 분석 생성 실패: {str(e)}"
+
+    def unified_search(self, query: str):
+        """
+        Unified search dispatcher with fallback strategy.
+        1. Try Brave Search (Premium results)
+        2. Fallback to Naver (Local/News)
+        """
+        print(f"🔍 [Unified Search] Query: {query}")
+        
+        # 1. Default to Naver Search (Local/News) - User requested priority
+        print("🔍 [Unified Search] Using Naver Search (Primary)...")
+        naver_results = self.fetch_naver_search(query)
+        
+        # 2. YouTube Search - User requested refinement
+        print("🔍 [Unified Search] Using YouTube Trends (Primary)...")
+        youtube_results = self.fetch_youtube_trends(query)
+        
+        naver_processed = []
+        youtube_processed = []
+        
+        # Process Naver Results
+        if naver_results:
+            print(f"✅ [Unified Search] {len(naver_results)} results fetched from Naver.")
+            for r in naver_results:
+                raw_title = r.get("title", "")
+                raw_desc = r.get("description", "")
+                
+                clean_title = re.sub(r'<[^>]+>', '', raw_title).replace("&quot;", '"').replace("&amp;", "&")
+                clean_snippet = re.sub(r'<[^>]+>', '', raw_desc).replace("&quot;", '"').replace("&amp;", "&")
+                
+                naver_processed.append({
+                    "source": "Naver",
+                    "title": clean_title,
+                    "link": r.get("link"),
+                    "snippet": clean_snippet
+                })
+
+        # Process YouTube Results
+        if youtube_results:
+            print(f"✅ [Unified Search] {len(youtube_results)} results fetched from YouTube.")
+            for r in youtube_results:
+                youtube_processed.append({
+                    "source": "YouTube",
+                    "title": r.get("title"),
+                    "link": f"https://www.youtube.com/watch?v={r.get('video_id')}",
+                    "snippet": f"[Video] {r.get('title')} by {r.get('channel')}" 
+                })
+        
+        # Interleave Results (Naver, YouTube, Naver, YouTube...)
+        combined_results = []
+        max_len = max(len(naver_processed), len(youtube_processed))
+        
+        for i in range(max_len):
+            if i < len(naver_processed):
+                combined_results.append(naver_processed[i])
+            if i < len(youtube_processed):
+                combined_results.append(youtube_processed[i])
+        
+        if combined_results:
+            return combined_results
+            
+        return []
+
+    def fetch_live_signals_from_db(self, limit=5):
+        """
+        [Tier 1: High-Frequency]
+        Fetches 'Breaking' signals (X, Finance) from internal DB.
+        These are populated by the Stealth Crawler.
+        """
+        if self.mode == "MOCK":
+            return [
+                {"keyword": "비트코인 급락", "insight": "5분 전 바이낸스 대량 매도 포착 (크롤링)", "source": "Stealth"},
+                {"keyword": "코스피 서킷브레이커", "insight": "장지수 급락 발동 (금융 속보)", "source": "Stealth"}
+            ]
+
+        try:
+            with get_db_connection(self.db_url) as conn:
+                with conn.cursor() as cur:
+                    # Assuming 'signals' table has 'keyword', 'insight', 'agent' columns
+                    # We prioritize 'Stealth' agent or specific sources if available
+                    cur.execute("""
+                        SELECT keyword, insight, agent, updated_at
+                        FROM signals
+                        WHERE agent IN ('Stealth', 'Jwem') 
+                        ORDER BY updated_at DESC
+                        LIMIT %s
+                    """, (limit,))
+                    
+                    rows = cur.fetchall()
+                    results = []
+                    for r in rows:
+                        results.append({
+                            "keyword": r[0],
+                            "avg_score": 99, # Breaking news is always hot
+                            "score_trend": "up",
+                            "related_insight": r[1] if r[1] else self._generate_persona_comment("BREAKING", r[0], "Stealth"),
+                            "source": "Stealth" if r[2] == 'Stealth' else "Crawling",
+                            "type": "BREAKING"
+                        })
+                    return results
+        except Exception as e:
+            print(f"[DB] Fetch Signals Error: {e}")
+            return []
+
+    @cache.cached(source="NaverShopping", expiry=3600)
+    def fetch_naver_shopping(self, query: str = "인기상품"):
+        """
+        [Tier 2: Medium-Frequency]
+        Fetches trending products from Naver Shopping.
+        """
+        if self.mode == "MOCK":
+            return [
+                {"title": "MOCK: 손흥민 축구화", "link": "#", "lprice": "150000"},
+                {"title": "MOCK: 아이폰 16 케이스", "link": "#", "lprice": "25000"}
+            ]
+            
+        self._throttle()
+        url = "https://openapi.naver.com/v1/search/shop.json"
+        headers = {
+            "X-Naver-Client-Id": self.naver_id,
+            "X-Naver-Client-Secret": self.naver_secret
+        }
+        # sim = similarity, date = date. 'sim' is better for 'trending' context usually 
+        # but for specific query 'popular', date might be irrelevant.
+        # We'll use a generic query or the passed query.
+        params = {"query": query, "display": 5, "start": 1, "sort": "sim"}
+        
+        try:
+            response = requests.get(url, headers=headers, params=params)
+            if response.status_code == 200:
+                items = response.json().get("items", [])
+                results = []
+                for item in items:
+                    title = re.sub(r'<[^>]+>', '', item['title'])
+                    results.append({
+                        "keyword": title,
+                        "avg_score": 85,
+                        "score_trend": "stable",
+                        "related_insight": f"최저가 {int(item['lprice']):,}원 | 쇼핑 트렌드",
+                        "source": "Naver Shopping",
+                        "type": "SHOPPING",
+                        "link": item['link']
+                    })
+                return results
+            return []
+        except Exception as e:
+            print(f"[Shopping] Error: {e}")
+            return []
+
+    def fetch_unified_trends(self):
+        """
+        [Smart Signal Router]
+        Aggregates trends from all tiers:
+        1. DB Signals (Breaking/Real-time)
+        2. Google Trends (Macro/Daily) - via fetch_google_trends
+        3. YouTube (Viral/Media) - via fetch_youtube_trends (Cached 6h)
+        4. Naver Shopping (Consumption) - via fetch_naver_shopping
+        
+        Returns a sorted list of unified signal objects.
+        """
+        print("🔍 [Unified] Aggregating signals from all sources...")
+        
+        unified_list = []
+        
+        # 1. [Tier 1] Breaking Signals (DB)
+        db_signals = self.fetch_live_signals_from_db(limit=3)
+        unified_list.extend(db_signals)
+        
+        # 2. [Tier 2] Shopping Trends (Naver)
+        # We use a rotating keyword or generic '트렌드' if specific keyword not provided
+        shop_trends = self.fetch_naver_shopping("트렌드")
+        for item in shop_trends[:3]:
+             raw_keyword = item['keyword']
+             # Remove [bracketed] prefixes common in shopping
+             clean_keyword = re.sub(r'\[.*?\]', '', raw_keyword).strip()
+             if len(clean_keyword) > 20:
+                 clean_keyword = clean_keyword[:20] + "..."
+             item['keyword'] = clean_keyword
+             item['related_insight'] = self._generate_persona_comment("SHOPPING", clean_keyword, "Naver Shopping")
+        unified_list.extend(shop_trends[:3])
+        
+        # 3. [Tier 3] Viral (YouTube)
+        # Quota Protection: cached for 6h.
+        yt_trends = self.fetch_youtube_trends("trending")
+        if yt_trends:
+            for item in yt_trends[:3]:
+                # Extract clean keyword from title (before | or :)
+                raw_title = item['title']
+                clean_keyword = re.split(r'[|#:]', raw_title)[0].strip()
+                if len(clean_keyword) > 20:
+                    clean_keyword = clean_keyword[:20] + "..."
+                    
+                unified_list.append({
+                    "keyword": clean_keyword,
+                    "avg_score": 92, # Viral high score
+                    "score_trend": "up",
+                    "related_insight": self._generate_persona_comment("VIRAL", clean_keyword, "YouTube"),
+                    "source": "YouTube",
+                    "type": "VIRAL",
+                    "link": f"https://www.youtube.com/watch?v={item['video_id']}"
+                })
+        
+        # 4. [Tier 2/3] Macro (Google Trends)
+        g_trends = self.fetch_google_trends()
+        if g_trends:
+            for keyword in g_trends[:3]:
+                unified_list.append({
+                    "keyword": keyword,
+                    "avg_score": 88,
+                    "score_trend": "stable",
+                    "related_insight": self._generate_persona_comment("MACRO", keyword, "Google Trends"),
+                    "source": "Google Trends",
+                    "type": "MACRO",
+                    "link": f"https://trends.google.com/trends/explore?q={keyword}"
+                })
+
+        # 5. [Fallback/Supplement] Naver News (Standard Interest)
+        if len(unified_list) < 10:
+            n_trends = self.fetch_naver_search("속보")
+            for item in n_trends[:(10 - len(unified_list))]:
+                title = re.sub(r'<[^>]+>', '', item['title'])
+                unified_list.append({
+                    "keyword": title,
+                    "avg_score": 80,
+                    "score_trend": "down",
+                    "related_insight": self._generate_persona_comment("NEWS", title, "Naver News"),
+                    "source": "Naver News",
+                    "type": "NEWS",
+                    "link": item['link']
+                })
+                
+        # Final Sort: Priority Logic
+        # 1. Breaking (99+)
+        # 2. Viral (90+)
+        # 3. Rest by score
+        unified_list.sort(key=lambda x: x.get('avg_score', 0), reverse=True)
+        
+        return unified_list[:15] # Return top 15 mixed
+
+    def _generate_persona_comment(self, type, keyword, source):
+        """
+        Generates a short, persona-based comment for a trend.
+        Jwem (Analytical): For Macro, Finance, Tech.
+        Jfit (Emotional): For Viral, Shopping, Entertainment.
+        """
+        import random
+        
+        # Jwem (Analytical) Comments
+        jwem_comments = [
+            f"데이터 패턴 분석 결과, {keyword} 관련 지표가 상승세입니다.",
+            "거시 경제 흐름과 연동된 중요한 신호로 포착되었습니다.",
+            f"시장 변동성을 주도할 가능성이 높은 키워드입니다.",
+            "검색량 추이가 임계치를 돌파했습니다. 주시가 필요합니다.",
+            f"{keyword}에 대한 기술적 분석 시그널이 발생했습니다."
+        ]
+        
+        # Jfit (Emotional) Comments
+        jfit_comments = [
+            f"지금 진짜 핫해요! {keyword} 모르면 대화가 안 된다고요~ 🔥",
+            "SNS에서 난리 났어요! 반응 속도가 엄청납니다!",
+            f"이거 봤어요? {keyword} 진짜 대박인 것 같아요! 🤩",
+            "트렌드세터라면 절대 놓치면 안 되는 소식입니다!",
+            f"{keyword}! 지금 커뮤니티가 들썩이고 있어요!"
+        ]
+        
+        # Jwem (Urgent/Warning)
+        jwem_urgent = [
+            f"🚨 긴급: {keyword} 관련 리스크 요인이 감지되었습니다.",
+            "즉각적인 시장 대응이 필요한 변동성 구간입니다.",
+            "비정상적인 데이터 스파이크가 발생했습니다. 주의하세요."
+        ]
+
+        if type in ['maco', 'MACRO', 'NEWS', 'BREAKING']:
+            if type == 'BREAKING':
+                return random.choice(jwem_urgent)
+            return random.choice(jwem_comments)
+        else:
+            # VIRAL, SHOPPING, etc.
+            return random.choice(jfit_comments)
+
+
+    def enrich_search_results_with_ollama(self, results: List[Dict]):
+        """
+        Uses Local LLM (Ollama) to rewrite titles and summarize snippets.
+        Model: llama3.2:3b (Fast & Efficient for Mac Mini)
+        """
+        if self.mode == "MOCK":
+            return results
+
+        # OLLAMA_BASE_URL is usually http://aisignal-ollama:11434 inside container
+        # But if running locally (streamlit), it's localhost:11434.
+        # We try both or rely on env.
+        ollama_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
+        if "aisignal-ollama" in ollama_url:
+             # If running in docker, use the container name. 
+             # But if this script is running on host (streamlit run app.py), it needs localhost.
+             # The user's env has http://aisignal-ollama:11434. 
+             # We should probably check if we are in docker or not. 
+             # For now, let's try a timeout.
+             pass
+
+        print(f"🦙 [Local LLM] Enriching {len(results)} results using llama3.2:3b...")
+        
+        enriched_results = []
+        
+        for item in results:
+            try:
+                # Optimized prompt for speed
+                # Optimized prompt for speed
+                prompt = f"""
+                Rewrite the following search result into a catchy title and a 1-sentence summary in KOREAN.
+                Even if the input is English, valid output must be in KOREAN.
+                
+                Original Title: {item.get('title')}
+                Original Snippet: {item.get('snippet')}
+                
+                Format:
+                TITLE: [New Title in Korean]
+                SUMMARY: [New Summary in Korean]
+                """
+                
+                payload = {
+                    "model": "llama3.2:3b",
+                    "prompt": prompt,
+                    "stream": False,
+                    "options": {"temperature": 0.3, "num_predict": 60}
+                }
+                
+                # Try connection (handling both docker and local execution contexts)
+                response = None
+                try:
+                    response = requests.post(f"{ollama_url}/api/generate", json=payload, timeout=20)
+                except:
+                    # Fallback to localhost if aisignal-ollama fails (e.g. running outside docker)
+                    response = requests.post("http://localhost:11434/api/generate", json=payload, timeout=20)
+
+                if response and response.status_code == 200:
+                    output = response.json().get("response", "")
+                    
+                    # Parse simplified output
+                    new_title = item.get('title')
+                    new_snippet = item.get('snippet')
+                    
+                    for line in output.split('\n'):
+                        if line.startswith("TITLE:"):
+                            new_title = line.replace("TITLE:", "").strip()
+                        elif line.startswith("SUMMARY:"):
+                            new_snippet = line.replace("SUMMARY:", "").strip()
+                            
+                    enriched_results.append({
+                        "source": item.get('source'),
+                        "title": new_title,
+                        "link": item.get('link'),
+                        "snippet": new_snippet
+                    })
+                else:
+                    enriched_results.append(item) # Fallback to original
+                    
+            except Exception as e:
+                print(f"⚠️ [Local LLM] Failed to enrich items: {e}")
+                enriched_results.append(item)
+                
+        return enriched_results
+
 if __name__ == "__main__":
     connectors = APIConnectors()
     print(f"[API] Running in {connectors.mode} mode.")
-    # Crypto Test
-    print("Crypto Prices (CoinGecko):")
-    print(json.dumps(connectors.fetch_crypto_prices(), indent=2))
-    # Naver Test
-    print("\nNaver Search (AI Signal):")
-    print(json.dumps(connectors.fetch_naver_search("AI Signal"), indent=2, ensure_ascii=False))
+    # Search Test
+    print("\nUnified Search Test (AI Agents):")
+    search_results = connectors.unified_search("AI Agents")
+    print(json.dumps(search_results[:2], indent=2, ensure_ascii=False))
