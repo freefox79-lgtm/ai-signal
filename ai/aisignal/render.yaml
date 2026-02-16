@@ -3,7 +3,7 @@ services:
     name: ai-signal
     env: docker
     region: singapore
-    plan: free
+    plan: starter
     branch: main
     dockerContext: .
     dockerfilePath: ./Dockerfile
