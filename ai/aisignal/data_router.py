@@ -3,7 +3,12 @@ import psycopg2
 from urllib.parse import urlparse, parse_qs, urlunparse
 from dotenv import load_dotenv
 
-load_dotenv(".env.local")
+# Load environment variables (handles .env.local if present, then system env)
+if os.path.exists(".env.local"):
+    load_dotenv(".env.local")
+else:
+    load_dotenv()
+
 
 class DataRouter:
     """
@@ -41,9 +46,12 @@ class DataRouter:
         url = self.supabase_url if route == "SUPABASE" else self.macmini_url
         
         try:
-            if 'supabase' in url or 'pooler' in url:
+            if url and ('supabase' in url or 'pooler' in url):
                 return psycopg2.connect(url, sslmode='require')
-            return psycopg2.connect(url)
+            if url:
+                return psycopg2.connect(url)
+            raise ValueError(f"Database URL for {route} is None")
+
         except Exception as e:
             print(f"❌ [DataRouter] Connection Error ({route}): {e}")
             # Final fallback to Mac Mini if Supabase fails (or vice-versa)

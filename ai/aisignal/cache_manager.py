@@ -3,8 +3,12 @@ import os
 import json
 import datetime
 from dotenv import load_dotenv
+# Load environment variables
+if os.path.exists(".env.local"):
+    load_dotenv(".env.local")
+else:
+    load_dotenv()
 
-load_dotenv(".env.local")
 
 class CacheManager:
     """

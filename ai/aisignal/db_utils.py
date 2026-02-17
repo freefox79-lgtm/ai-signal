@@ -1,5 +1,6 @@
 import os
 from urllib.parse import urlparse, parse_qs, urlunparse
+from dotenv import load_dotenv
 
 class MockCursor:
     """UI 개발을 위한 가짜 커서"""
@@ -91,9 +92,12 @@ def get_db_connection(db_url=None, routing='default'):
     중앙 집중식 DB 연결 유틸리티
     - routing: 'default' (기본/클라우드), 'local' (맥미니), 'cloud' (수파베이스 전용)
     """
-    import os
-    from dotenv import load_dotenv
-    load_dotenv(".env.local")
+    # Load environment variables
+    if os.path.exists(".env.local"):
+        load_dotenv(".env.local")
+    else:
+        load_dotenv()
+
 
     # Mock Mode Injection for Intelligence Layer Expansion
     if os.getenv("DB_MOCK_MODE") == "true":
@@ -190,11 +194,8 @@ def get_db_connection(db_url=None, routing='default'):
         return MockConn()
     else:
         # 환경 변수 로드 (moved here from original global scope)
-        try:
-            from dotenv import load_dotenv
-            load_dotenv(".env.production") # .env.local already loaded above
-        except ImportError:
-            pass
+        pass
+
 
         # 실제 DB 작업 시 드라이버 임포트
         try:

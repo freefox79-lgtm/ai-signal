@@ -111,8 +111,8 @@ def show():
     
     try:
         # DataRouter를 통해 실시간 트렌드 로드 (Unified Engine)
-        # 이제 SQL 대신 Unified Aggregator를 사용
-        live_trends = connectors.fetch_unified_trends()
+        # 이제 SQL 대신 Unified Aggregator를 사용 -> DB 기반 알고리즘 트렌드로 교체 (Phase 12)
+        live_trends = connectors.fetch_active_realtime_trends_from_db()
     except Exception as e:
         st.error(f"트렌드 엔진 오류: {e}")
         live_trends = []

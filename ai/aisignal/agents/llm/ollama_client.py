@@ -16,8 +16,12 @@ import hashlib
 import redis
 from typing import List, Optional, Union, Dict
 from dotenv import load_dotenv
+# Load environment variables
+if os.path.exists(".env.local"):
+    load_dotenv(".env.local")
+else:
+    load_dotenv()
 
-load_dotenv(".env.local")
 
 # TTL 상수 import
 try:
@@ -43,7 +47,7 @@ class OllamaClient:
         base_url: str = None,
         default_model: str = "llama3.2:3b"
     ):
-        self.base_url = base_url or os.getenv("OLLAMA_BASE_URL", "http://aisignal-ollama:11434")
+        self.base_url = base_url or os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
         self.default_model = default_model
         
         # Redis 캐싱
@@ -81,7 +85,9 @@ class OllamaClient:
         temperature: float = 0.7,
         max_tokens: int = 500,
         stream: bool = False,
-        use_cache: bool = True
+        use_cache: bool = True,
+        options: Dict[str, Any] = None,
+        keep_alive: str = "5m"
     ) -> str:
         """텍스트 생성 (캐싱 지원)"""
         model = model or self.default_model
@@ -100,14 +106,23 @@ class OllamaClient:
                 print(f"[Ollama] Cache read error: {e}")
         
         url = f"{self.base_url}/api/generate"
+        
+        # Default options
+        final_options = {
+            "num_predict": max_tokens,
+            "temperature": temperature
+        }
+        
+        # Merge user options (e.g. num_ctx, num_gpu)
+        if options:
+            final_options.update(options)
+
         payload = {
             "model": model,
             "prompt": prompt,
-            "temperature": temperature,
             "stream": stream,
-            "options": {
-                "num_predict": max_tokens
-            }
+            "options": final_options,
+            "keep_alive": keep_alive
         }
         
         try:
