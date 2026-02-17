@@ -144,9 +144,11 @@ def collect_and_analyze_trends():
         # Cluster
         print("   ... Clustering with Local LLM")
         try:
-            final_trends = analyzer.cluster_keywords(ranked_trends)
+            clustered_trends = analyzer.cluster_keywords(ranked_trends)
+            # Stage 2.7: Deep Reasoning with Gemma 3
+            final_trends = analyzer.cross_verify_with_gemma(clustered_trends)
         except Exception as e:
-            print(f"⚠️ Clustering failed: {e}")
+            print(f"⚠️ Clustering or Gemma reasoning failed: {e}")
             final_trends = ranked_trends
             
         # Enrich with Reasons (Briefing)

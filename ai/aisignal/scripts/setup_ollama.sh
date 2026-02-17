@@ -28,16 +28,10 @@ docker exec aisignal-ollama ollama pull llama3.2:3b
 echo "   ✅ Llama 3.2 완료"
 echo ""
 
-# 2. Mistral (7B) - 균형잡힌 성능
-echo "2️⃣  Mistral (7B) 다운로드..."
-docker exec aisignal-ollama ollama pull mistral:7b
-echo "   ✅ Mistral 완료"
-echo ""
-
-# 3. Qwen2.5-Coder (7B) - 코드 생성
-echo "3️⃣  Qwen2.5-Coder (7B) 다운로드..."
-docker exec aisignal-ollama ollama pull qwen2.5-coder:7b
-echo "   ✅ Qwen2.5-Coder 완료"
+# 3. Gemma 3 (12B) - 심층 추론 및 전략 전문가
+echo "3️⃣  Gemma 3 (12B) 다운로드..."
+docker exec aisignal-ollama ollama pull gemma3:12b
+echo "   ✅ Gemma 3 완료"
 echo ""
 
 # 4. Nomic Embed Text - 임베딩용 (GraphRAG)

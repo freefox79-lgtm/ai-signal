@@ -785,7 +785,8 @@ class APIConnectors:
             name_map = {'BTC': '비트코인', 'ETH': '이더리움', 'XRP': '리플', 'SOL': '솔라나', 'DOGE': '도지코인', 'SUI': '수이', 'SEI': '세이'}
             for item in data:
                 change_rate = item['signed_change_rate']
-                vol_score = min(abs(change_rate) * 1000, 100)
+                # Dampen scaling from 1000 to 500 to prevent crypto domination
+                vol_score = min(abs(change_rate) * 500, 100)
                 symbol = item['market'].split('-')[1]
                 results.append({
                     "keyword": name_map.get(symbol, symbol),
@@ -857,11 +858,13 @@ class APIConnectors:
         Fetches signals from DC Inside / FMKorea.
         Currently Mocked for stability, will upgrade to scraper.
         """
-        # Placeholder: Return generic hot topics
+        # Diversified high-intensity hot topics (Society, Culture, Lifestyle)
         return [
-            {"keyword": "치킨", "community_activity": 40},
-            {"keyword": "택배", "community_activity": 30},
-            {"keyword": "날씨", "community_activity": 50}
+            {"keyword": "초전도체 재검증", "community_activity": 85, "type": "TECH", "source": "DCInside"},
+            {"keyword": "일본 무비자 여행", "community_activity": 75, "type": "LIFESTYLE", "source": "FMKorea"},
+            {"keyword": "뉴진스 컴백 루머", "community_activity": 90, "type": "CELEB", "source": "TheQoo"},
+            {"keyword": "챗GPT-5 공개", "community_activity": 80, "type": "AI", "source": "CLIEN"},
+            {"keyword": "탕후루 유행 종료", "community_activity": 65, "type": "FOOD", "source": "Inven"}
         ]
 
     def fetch_sns_trends(self):
@@ -888,10 +891,9 @@ class APIConnectors:
         Below is a list of raw trend keywords from various sources.
         
         TASKS:
-        1. Remove duplicates (e.g., "Bitcoin" and "BTC" -> keep "Bitcoin").
-        2. Remove generic/meaningless keywords (e.g., "Today", "News").
-        3. Standardize formatting.
-        4. Select the top 15 most distinct and interesting topics.
+    1. Remove exact duplicates and near-identical phrases.
+    2. Remove generic/meaningless keywords.
+    3. Select up to 20 most distinct topics, ENSURING you include items from ALL categories present (Finance, Tech, Lifestyle, etc.).
         
         RAW LIST:
         {candidates_text}
@@ -948,23 +950,23 @@ class APIConnectors:
         Uses qwen2.5-coder:7b to find correlations and momentum.
         """
         if self.mode == "MOCK":
-            return "Mock Expert Report: Trends are showing high volatility in IT sector."
-
+            return "Mock Expert Report: Market momentum is high in AI sector."
+        
         print(f"🧠 [Local Expert] Analyzing momentum with {self.ollama.MODEL_ANALYTIC}...")
         
         context = "\n".join([f"- {i['keyword']} (Source: {i['source']}, Category: {i['type']})" for i in refined_items])
         
         prompt = f"""
-        You are a Senior Market Intelligence Analyst.
-        Analyze the following trend keywords and provide a deep " MOMENTUM REPORT".
-        
-        TRENDS:
-        {context}
-        
-        TASKS:
-        1. Group keywords into 2-3 logical clusters.
-        2. Identify 'Cross-Impact' (e.g., How does Trend A affect Trend B?).
-        3. Determine the 'Market Sentiment' (Bullish, Bearish, Neutral).
+    You are a Senior Global Trend & Market Intelligence Analyst.
+    Analyze the following trend keywords and provide a deep "MOMENTUM REPORT".
+    
+    TRENDS:
+    {context}
+    
+    TASKS:
+    1. Group keywords into 2-3 logical clusters (e.g., Tech-Finance, Culture-Social, Global-Macro).
+    2. Identify 'Cross-Impact' (e.g., How does high social interest in AI affect specific tech stocks?).
+    3. Determine the '综合 Sentiment' (Bullish, Bearish, or Neutral) by considering both financial volatility AND social virality.
         
         OUTPUT FORMAT:
         Provide a concise 3-4 sentence report in KOREAN. 
@@ -982,6 +984,41 @@ class APIConnectors:
         except Exception as e:
             print(f"⚠️ [Local Expert] Analysis Failed: {e}")
             return "Local expert report generation failed."
+
+    def _deep_synthesize_with_gemma(self, refined_items: List[Dict], expert_report: str) -> str:
+        """
+        [Stage 2.7: Strategic Synthesis]
+        Uses Gemma 3 12B to resolve conflicts between personas and find structural shifts.
+        """
+        print(f"💎 [Gemma 3] Synthesizing strategic consensus for {len(refined_items)} signals...")
+        
+        prompt = f"""
+        당신은 AI Signal의 '전략적 중재자' Gemma 3입니다.
+        로컬 전문가의 보고서와 정제된 데이터들을 바탕으로, 쥄(금융)과 쥐핏(트렌드)의 관점을 통합한 '최종 전략 합의'를 도출하세요.
+        
+        전문가 리포트:
+        {expert_report}
+        
+        데이터:
+        {json.dumps(refined_items[:5], ensure_ascii=False)}
+        
+        작업:
+        1. 쥄과 쥐핏의 관점이 충돌하는 지점(예: 고성능 기술 vs 높은 가격 저항)을 찾아내어 해결책을 제시하십시오.
+        2. 이 신호들이 향후 1주일간 시장에 미칠 '구조적 영향력'을 추론하십시오.
+        
+        출력:
+        한국어로 3문장의 강력한 '전략적 합의' 결론을 작성하십시오.
+        """
+        
+        try:
+            consensus = self.ollama.generate(
+                prompt=prompt,
+                model=self.ollama.MODEL_REASONING,
+                temperature=0.4
+            )
+            return consensus
+        except Exception as e:
+            return "전략적 합의 도출 중..."
 
     def _analyze_search_momentum(self, query: str, results: List[Dict]) -> str:
         """
@@ -1048,9 +1085,9 @@ class APIConnectors:
         {candidates_json}
         
         TASKS:
-        1. Select the Top 10 trends that have the highest global impact.
-        2. Assign a Trend Score (0-100.0).
-        3. Write a single-sentence "Global Insight" in KOREAN that synthesizes the local expert's analysis with global context.
+    1. Select the Top 10 trends that have the highest overall impact (Global influence + Logic + Social Virality).
+    2. Assign a Trend Score (0-100.0). Ensure Categorical Diversity: your Top 10 MUST include at least 4 different categories (e.g., Finance, Tech, Celeb, Lifestyle).
+    3. Write a single-sentence "Global Insight" in KOREAN that synthesizes the local expert's analysis with global context.
         
         OUTPUT FORMAT (JSON ARRAY ONLY):
         [
@@ -1060,6 +1097,7 @@ class APIConnectors:
         """
         
         try:
+         if genai:
              genai.configure(api_key=self.gemini_key)
              model = genai.GenerativeModel('gemini-flash-latest')
              response = model.generate_content(prompt, generation_config={"response_mime_type": "application/json"})
@@ -1194,16 +1232,16 @@ class APIConnectors:
         except Exception as e:
             print(f"❌ Error fetching active trends from DB: {e}")
             return []
+    def fetch_unified_trends(self):
         """
         [Hierarchical AI Pipeline]
-        Collect -> Refine (Local Fast) -> Analyze (Local Expert) -> Synthesis (Cloud)
+        Collect -> Refine (Local Fast) -> Analyze (Local Expert) -> Deep Synthesize (Gemma 3) -> Synthesis (Cloud)
         """
         print("🔍 [Unified] Aggregating signals from all sources...")
         
         raw_list = []
         
         # 1. Collect Data
-        # ... (same collection logic) ...
         db_signals = self.fetch_live_signals_from_db(limit=5)
         for item in db_signals:
             if 'source' not in item: item['source'] = 'Database'
@@ -1234,15 +1272,23 @@ class APIConnectors:
                     "link": f"https://trends.google.com/trends/explore?q={keyword}",
                     "related_insight": "Google 검색량 급증"
                 })
+        
+        # Social & Community (Balanced)
+        sns_trends = self.fetch_community_trends()
+        raw_list.extend(sns_trends)
                 
         # 2. Refine (Local LLM - Llama 3.2 3B)
         refined_list = self._refine_with_local_llm(raw_list)
         
         # 2.5 Expert Analysis (Local LLM - Qwen 2.5 7B)
         expert_report = self._analyze_with_local_expert(refined_list)
+
+        # 2.7 Deep Synthesize (Local LLM - Gemma 3 12B)
+        gemma_consensus = self._deep_synthesize_with_gemma(refined_list, expert_report)
         
         # 3. Synthesis & Ranking (Cloud AI - Gemini)
-        ranked_list = self._rank_with_gemini(refined_list, expert_report)
+        # We pass gemma_consensus to Gemini for final global synthesis
+        ranked_list = self._rank_with_gemini(refined_list, f"{expert_report}\n\n[Gemma Deep Reasoning]\n{gemma_consensus}")
         
         if not ranked_list:
              return self._fallback_scoring(refined_list or raw_list)[:10]

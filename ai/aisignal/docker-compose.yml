@@ -183,6 +183,29 @@ services:
     extra_hosts:
       - "db.aisignal.kr:host-gateway"
       - "ai.aisignal.kr:host-gateway"
+    healthcheck:
+      test: [ "CMD", "curl", "--fail", "http://localhost:8000/" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ========================================
+  # Cloudflare Tunnel
+  # ========================================
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: aisignal-tunnel
+    restart: always
+    env_file:
+      - .env.production
+    command: tunnel run
+    networks:
+      - aisignal-network
+    depends_on:
+      app:
+        condition: service_healthy
+      api:
+        condition: service_healthy
 
 networks:
   aisignal-network:

@@ -229,6 +229,56 @@ class TrendAnalyzer:
 
         return candidates
 
+    def cross_verify_with_gemma(self, ranked_trends: List[Dict]) -> List[Dict]:
+        """
+        [Stage 2.7: Deep Reasoning & Governance]
+        Uses Gemma 3 12B to cross-verify the analyst's findings and add 'Contrarian' or 'Deep Persona' insights.
+        """
+        if not ranked_trends:
+            return []
+
+        print(f"💎 [Gemma 3] Performing deep semantic reasoning on top {len(ranked_trends[:5])} trends...")
+        
+        context = "\n".join([f"- {i['keyword']} (Analytic Score: {i['final_score']})" for i in ranked_trends[:5]])
+        
+        prompt = f"""
+        당신은 AI Signal 시스템의 '전략적 합의 엔진' Gemma 3입니다.
+        분석 전문가가 도출한 상위 트렌드를 검토하고, 경제적 가치와 '사회문화적 영향력'사이의 균형 잡힌 통찰을 제시하십시오.
+        
+        트렌드 리스트:
+        {context}
+        
+        작업:
+        1. 각 트렌드가 대중의 라이프스타일이나 심리에 어떤 변화를 일으킬지 추론하십시오.
+        2. 금융적 관점(쥄)과 트렌드 관점(쥐핏) 사이의 충돌을 해결하고 '전략적 합의(Strategic Consensus)'를 도출하십시오.
+        3. 단순 수치 분석을 넘어선 '문화적 맥락'을 12B 모델의 깊이로 설명하십시오.
+        
+        출력 형식:
+        한국어로 3-4문장의 강력한 리포트를 작성하십시오.
+        """
+        
+        try:
+            # We use the new MODEL_REASONING (Gemma 3)
+            reasoning_report = self.ollama.generate(
+                prompt=prompt,
+                model=self.ollama.MODEL_REASONING,
+                temperature=0.4,
+                max_tokens=600,
+                options={
+                    "num_ctx": 8192,
+                    "num_gpu": 99 # Maximize Mac Mini GPU power for 12B
+                }
+            )
+            
+            # Attach the deep reasoning to the top item or a global field
+            if ranked_trends:
+                ranked_trends[0]['gemma_deep_reasoning'] = reasoning_report
+                
+            return ranked_trends
+        except Exception as e:
+            print(f"⚠️ Gemma reasoning failed: {e}")
+            return ranked_trends
+
     def generate_trend_briefing(self, keyword: str, slope: float, density: int, related_keywords: List[str] = None) -> str:
         """
         Uses Local LLM (Persona: Data Analysis Expert) to explain WHY this is trending.
