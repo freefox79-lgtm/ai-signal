@@ -8,8 +8,7 @@ source venv/bin/activate
 
 # Set environment variables just in case
 export OLLAMA_BASE_URL="http://localhost:11434"
-# Force usage of Production DB (Supabase) so local Mac Mini writes to Live DB
-export DATABASE_URL='postgresql://postgres.dlyquzckbwpjbquruhml:Fosl08281!!@aws-1-ap-southeast-2.pooler.supabase.com:6543/postgres'
+# DATABASE_URL is now managed dynamically by DataRouter via .env.local
 
 # Run the collector in loop mode
 echo "🚀 Starting Trend Collector Service (10 min interval)..."

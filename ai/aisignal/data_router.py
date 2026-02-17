@@ -20,7 +20,7 @@ class DataRouter:
     SUPABASE_TABLES = [
         'ai_signals', 'trending_top_20', 'system_status', 
         'daily_briefings', 'portfolio_summary', 'user_settings',
-        'signals', 'issues', 'market_indices' # Legacy support
+        'signals', 'issues', 'market_indices', 'active_realtime_trends' 
     ]
     
     MACMINI_TABLES = [

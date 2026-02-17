@@ -180,6 +180,12 @@ def collect_and_analyze_trends():
             # Serialize sources for DB (VARCHAR compatible)
             if 'sources' in t and isinstance(t['sources'], set):
                 t['source'] = ','.join(t['sources'])
+                
+            # Phase 19: Fallback Link (Naver Search)
+            import urllib.parse
+            if not t.get('link') or t.get('link') == '#':
+                safe_kw = urllib.parse.quote(t['keyword'])
+                t['link'] = f"https://search.naver.com/search.naver?query={safe_kw}"
 
         # Save
         print(f"   ... Saving {len(final_trends)} trends to DB")

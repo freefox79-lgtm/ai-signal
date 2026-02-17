@@ -17,10 +17,10 @@ except ImportError:
     genai = None
 
 # Load environment variables
+# Load environment variables (Tiered: .env then .env.local as override)
+load_dotenv()
 if os.path.exists(".env.local"):
-    load_dotenv(".env.local", override=False)
-else:
-    load_dotenv()
+    load_dotenv(".env.local", override=True)
 
 
 cache = CacheManager()
@@ -349,14 +349,14 @@ class APIConnectors:
     def fetch_apt_transactions(self, lawd_cd: str = "11110", deal_ymd: str = "202602"):
         """
         Fetches APT transaction data (아파트 매매 실거래가).
-        Default: Jongno-gu, Feb 2026.
         """
-        endpoint = "http://openapi.molit.go.kr:8081/OpenAPI_ToolInstallPackage/service/rest/RTMSOBJSvc/getRTMSDataSvcAptTrade"
+        # Modern endpoint (apis.data.go.kr) instead of legacy port 8081
+        endpoint = "http://apis.data.go.kr/1613000/RTMSOBJSvc/getRTMSDataSvcAptTrade"
         params = {
             "LAWD_CD": lawd_cd,
-            "DEAL_YMD": deal_ymd
+            "DEAL_YMD": deal_ymd,
+            "_type": "json" # Force JSON if supported
         }
-        # Data.go.kr XML responses need careful parsing or forcing json if supported
         return self.fetch_public_data(endpoint, params)
 
     @cache.cached(source="PublicData", expiry=86400)
@@ -364,6 +364,7 @@ class APIConnectors:
         """
         Fetches Commercial District Info (소상공인시장진흥공단_상권정보).
         """
+        # api.data.go.kr dong-based district info
         endpoint = "http://apis.data.go.kr/B553077/api/open/sdsc2/baroApi"
         params = {
             "resType": "json",

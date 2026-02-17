@@ -119,12 +119,13 @@ def show():
 
     st.markdown('<div class="ranking-container">', unsafe_allow_html=True)
     
+    import json
     for i, item in enumerate(live_trends):
         rank = i + 1
         keyword = item.get('keyword', 'Unknown')
         insight = item.get('related_insight', '')
         source = item.get('source', 'System')
-        signal_type = item.get('type', 'INFO')
+        signal_type = item.get('type', item.get('status', 'INFO'))
         link = item.get('link', '#')
         score = item.get('avg_score', 80)
         
@@ -135,91 +136,66 @@ def show():
             "SHOPPING": {"bg": "#39ff14", "label": "🛍️ 쇼핑"},
             "MACRO": {"bg": "#00f2ff", "label": "🌍 거시"},
             "NEWS": {"bg": "#007AFF", "label": "📰 뉴스"},
+            "RISING": {"bg": "#888", "label": "📈 상승"},
         }
         
-        config = badge_config.get(signal_type, {"bg": "#888", "label": signal_type})
+        config = badge_config.get(signal_type, {"bg": "#444", "label": signal_type})
         badge_bg = config["bg"]
         badge_label = config["label"]
-        
-        # Trend Score formatting
         score_val = float(score)
         
-        with st.container():
-            # Custom HTML for the Ranking Box (Neon Dark style)
-            # Use columns for layout
-            c1, c2, c3, c4 = st.columns([0.6, 5, 2.5, 1.5])
+        # Signal Breakdown Rendering
+        breakdown = item.get('signal_breakdown', {})
+        if isinstance(breakdown, str):
+            try:
+                breakdown = json.loads(breakdown)
+            except:
+                breakdown = {}
+        
+        badges_html = ""
+        if breakdown:
+            sorted_signals = sorted(breakdown.items(), key=lambda x: x[1], reverse=True)[:4]
+            icons = {'search': '🔍', 'video': '📺', 'sns': '🐦', 'community': '💬', 'finance': '💰'}
+            colors = {'search': '#03c75a', 'video': '#ff0000', 'sns': '#1da1f2', 'community': '#ff4500', 'finance': '#f7931a'}
             
-            with c1:
-                # Large Neon Rank Number
-                st.markdown(f"""
-                    <div style="font-family: 'Orbitron', sans-serif; font-size: 2.2rem; font-weight: 900; 
-                                color: var(--acc-blue); text-shadow: 0 0 15px var(--acc-blue); 
-                                line-height: 1; margin-top: 5px;">
-                        {rank}
-                    </div>
-                """, unsafe_allow_html=True)
-            
-            with c2:
-                # Keyword (Hyperlink) + Insight
-                st.markdown(f"""
-                    <div style="margin-left: 5px;">
-                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 2px;">
-                            <a href="{link}" target="_blank" style="text-decoration: none; color: white; font-size: 1.15rem; font-weight: 700; transition: 0.3s;">
-                                {keyword}
-                            </a>
-                            <span style="background: {badge_bg}; color: #000; font-size: 0.65rem; padding: 1px 6px; border-radius: 4px; font-weight: 800;">{badge_label}</span>
-                        </div>
-                        <div style="color: #aaa; font-size: 0.88rem; line-height: 1.3;">
-                            {insight}
-                        </div>
-                    </div>
-                """, unsafe_allow_html=True)
-                
-            with c3:
-                # Trend Score Progress Bar
-                st.markdown(f"""
-                    <div style="margin-top: 5px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
-                            <span style="font-size: 0.65rem; color: #666; font-family: 'Orbitron';">TOTAL SIGNAL</span>
-                            <span style="font-size: 0.8rem; color: var(--acc-blue); font-weight: 700;">{score_val:.1f}</span>
-                        </div>
-                        <div style="width: 100%; height: 5px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; margin-bottom: 6px;">
-                            <div style="width: {min(score_val, 100)}%; height: 100%; background: linear-gradient(90deg, var(--acc-blue), #ff00e6); box-shadow: 0 0 10px var(--acc-blue);"></div>
-                        </div>
-                """, unsafe_allow_html=True)
-                
-                # Signal Breakdown (Phase 13)
-                breakdown = item.get('signal_breakdown', {})
-                if breakdown:
-                    # Sort by value desc
-                    sorted_signals = sorted(breakdown.items(), key=lambda x: x[1], reverse=True)[:4] # Top 4
-                    
-                    icons = {'search': '🔍', 'video': '📺', 'sns': '🐦', 'community': '💬', 'finance': '💰'}
-                    colors = {'search': '#03c75a', 'video': '#ff0000', 'sns': '#1da1f2', 'community': '#ff4500', 'finance': '#f7931a'}
-                    
-                    badges_html = ""
-                    for k, v in sorted_signals:
-                        if v > 0:
-                            icon = icons.get(k, '🔹')
-                            color = colors.get(k, '#888')
-                            badges_html += f"""
-                                <span style="background: rgba(255,255,255,0.05); border: 1px solid {color}; color: #ddd; 
-                                             font-size: 0.6rem; padding: 2px 6px; border-radius: 8px; margin-right: 4px;">
-                                    {icon} {int(v)}
-                                </span>
-                            """
-                    
-                    if badges_html:
-                        st.markdown(f"""<div style="display: flex; flex-wrap: wrap;">{badges_html}</div>""", unsafe_allow_html=True)
-                
-                st.markdown("</div>", unsafe_allow_html=True) 
-                
-            with c4:
-                # Scan Button (Match Red/Pink style if possible, or primary)
-                if st.button("🔍 스캔", key=f"rank_scan_{i}", type="primary", use_container_width=True):
-                    st.session_state['last_scan'] = keyword
-                    st.rerun()
-            
-            st.markdown('<div style="height: 15px;"></div>', unsafe_allow_html=True) # Spacer
+            for k, v in sorted_signals:
+                if v > 0:
+                    icon = icons.get(k, '🔹')
+                    color = colors.get(k, '#888')
+                    badges_html += f"""
+                        <span style="background: rgba(255,255,255,0.05); border: 1px solid {color}88; color: #ddd; 
+                                     font-size: 0.65rem; padding: 2px 8px; border-radius: 6px; margin-right: 5px; margin-bottom: 5px; display: inline-block;">
+                            {icon} {int(v)}
+                        </span>
+                    """
+
+        # Consolidate into ONE single markdown block to avoid Streamlit HTML breakage
+        item_html = f"""
+        <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 15px; margin-bottom: 15px; display: flex; align-items: start; gap: 15px;">
+            <div style="font-family: 'Orbitron', sans-serif; font-size: 2.2rem; font-weight: 900; color: var(--acc-blue); text-shadow: 0 0 10px var(--acc-blue); min-width: 45px; text-align: center;">
+                {rank}
+            </div>
+            <div style="flex-grow: 1;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+                    <a href="{link}" target="_blank" style="text-decoration: none; color: white; font-size: 1.2rem; font-weight: 700;">{keyword}</a>
+                    <span style="background: {badge_bg}; color: #000; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; font-weight: 800; vertical-align: middle;">{badge_label}</span>
+                </div>
+                <div style="color: #aaa; font-size: 0.95rem; line-height: 1.4; margin-bottom: 10px;">
+                    {insight}
+                </div>
+                <div style="display: flex; flex-wrap: wrap;">{badges_html}</div>
+            </div>
+            <div style="min-width: 140px; text-align: right;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                    <span style="font-size: 0.65rem; color: #666; font-family: 'Orbitron';">SIGNAL</span>
+                    <span style="font-size: 0.9rem; color: var(--acc-blue); font-weight: 700;">{score_val:.1f}</span>
+                </div>
+                <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; margin-bottom: 8px;">
+                    <div style="width: {min(score_val, 100)}%; height: 100%; background: linear-gradient(90deg, var(--acc-blue), #ff00e6); box-shadow: 0 0 10px var(--acc-blue);"></div>
+                </div>
+            </div>
+        </div>
+        """
+        st.markdown(item_html, unsafe_allow_html=True)
             
     st.markdown('</div>', unsafe_allow_html=True)

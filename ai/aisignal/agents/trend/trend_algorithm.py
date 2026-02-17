@@ -279,7 +279,10 @@ class TrendAnalyzer:
             return response.strip()
         except Exception as e:
             print(f"⚠️ Briefing gen failed for {keyword}: {e}")
-            return "AI Analysis Unavailable"
+            # Structural Fallback
+            desc = "상승 추세가 관측됩니다." if slope > 0 else "데이터 변동이 감지되었습니다."
+            urgency = " (급상승 중)" if density > 30 else ""
+            return f"{keyword}에 대한 {desc}{urgency} 분석 데이터 축적 중입니다."
 
     def save_trends_to_db(self, trends: List[Dict]):
         """
@@ -302,7 +305,7 @@ class TrendAnalyzer:
                         i+1, 
                         t['keyword'], 
                         t['final_score'], 
-                        t.get('reason', 'AI Detection'), 
+                        t.get('related_insight', t.get('reason', 'AI Detection')), # Fix: use related_insight (LLM briefing)
                         t.get('status', 'NEW'),
                         t.get('source', 'System'),
                         t.get('link', '#'),
