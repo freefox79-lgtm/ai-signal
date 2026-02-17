@@ -49,7 +49,7 @@ class TrendAnalyzer:
         'sns': 0.25,      # Twitter/Insta
         'community': 0.2, # DC/FMKorea
         'video': 0.15,    # YouTube
-        'finance': 0.1    # Stock/Crypto
+        'finance': 0.15   # Stock/Crypto/Market
     }
 
     def calculate_weighted_score(self, signals: Dict[str, float]) -> float:
@@ -114,7 +114,7 @@ class TrendAnalyzer:
                 'video': min(item.get('velocity', 0) * 10, 100),       # Vel=10 -> 100
                 'sns': item.get('sns_volume', 0),                      # Direct (Mock)
                 'community': item.get('community_activity', 0),        # Direct (Mock)
-                'finance': item.get('finance_volatility', 0)           # Direct (Mock)
+                'finance': min(item.get('finance_volatility', 0), 100) # Stock/Crypto Volatility
             }
             
             # 2. Calculate Weighted Score

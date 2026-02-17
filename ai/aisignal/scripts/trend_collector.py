@@ -69,11 +69,16 @@ def collect_and_analyze_trends():
             if meta and 'insight' in meta and not candidates[kw]['related_insight']:
                 candidates[kw]['related_insight'] = meta['insight']
 
-        # 1. Fetch Finance Trends (Upbit)
-        print("   ... Fetching Finance Trends")
+        # 1. Fetch Finance Trends (Upbit + Naver Stock/Market)
+        print("   ... Fetching Finance Trends (Crypto + Stocks + Market)")
         finance_items = connectors.fetch_finance_trends()
         for item in finance_items:
-            update_candidate(item['keyword'], 'finance', item['finance_volatility'])
+            update_candidate(
+                item['keyword'], 
+                'finance', 
+                item['finance_volatility'],
+                meta={'insight': item.get('related_insight', '')}
+            )
 
         # 2. Fetch Community Trends (Mock/Scrape)
         print("   ... Fetching Community Trends")

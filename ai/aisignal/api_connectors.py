@@ -747,52 +747,108 @@ class APIConnectors:
     @cache.cached(source="Finance", expiry=600)
     def fetch_finance_trends(self):
         """
-        [Source E: Finance] Weights 0.1
-        Fetches Top Volatility Crypto from Upbit.
+        [Source E: Finance] Weights 0.15
+        Combined Finance Signal: Crypto (Upbit) + Stocks (Naver)
+        """
+        results = []
+        
+        # 1. Crypto (Existing Upbit)
+        try:
+            upbit_results = self._fetch_upbit_crypto()
+            if upbit_results:
+                results.extend(upbit_results)
+        except Exception as e:
+            print(f"[Finance] Upbit Error: {e}")
+
+        # 2. Stocks & Indicators (Naver Finance Scraper)
+        try:
+            naver_results = self.fetch_naver_finance_all()
+            if naver_results:
+                results.extend(naver_results)
+        except Exception as e:
+            print(f"[Finance] Naver Finance Error: {e}")
+            
+        return results
+
+    def _fetch_upbit_crypto(self):
+        """Internal helper for Upbit Crypto"""
+        if self.mode == "MOCK":
+            return [{"keyword": "비트코인", "finance_volatility": 80, "source": "Upbit"}]
+        
+        url = "https://api.upbit.com/v1/ticker"
+        markets = "KRW-BTC,KRW-ETH,KRW-XRP,KRW-SOL,KRW-DOGE,KRW-SUI,KRW-SEI"
+        response = requests.get(url, params={"markets": markets}, timeout=5)
+        if response.status_code == 200:
+            data = response.json()
+            results = []
+            name_map = {'BTC': '비트코인', 'ETH': '이더리움', 'XRP': '리플', 'SOL': '솔라나', 'DOGE': '도지코인', 'SUI': '수이', 'SEI': '세이'}
+            for item in data:
+                change_rate = item['signed_change_rate']
+                vol_score = min(abs(change_rate) * 1000, 100)
+                symbol = item['market'].split('-')[1]
+                results.append({
+                    "keyword": name_map.get(symbol, symbol),
+                    "finance_volatility": round(vol_score, 1),
+                    "source": "Upbit",
+                    "type": "FINANCE"
+                })
+            return results
+        return []
+
+    @cache.cached(source="NaverFinance", expiry=1200)
+    def fetch_naver_finance_all(self):
+        """
+        Scrapes Naver Finance for Top Trading, Top Rising, and Market Indicators (Rates).
         """
         if self.mode == "MOCK":
-            return [{"keyword": "비트코인", "finance_volatility": 80}, {"keyword": "리플", "finance_volatility": 60}]
-            
-        self._throttle()
-        url = "https://api.upbit.com/v1/ticker"
-        # Top KRW markets
-        markets = "KRW-BTC,KRW-ETH,KRW-XRP,KRW-SOL,KRW-DOGE,KRW-SUI,KRW-SEI" 
+            return [
+                {"keyword": "삼성전자", "finance_volatility": 75, "source": "NaverStock"},
+                {"keyword": "미국 USD", "finance_volatility": 40, "source": "NaverMarket"}
+            ]
+
+        combined_results = []
         
+        # A. Top Trading Stocks (KOSPI)
         try:
-            response = requests.get(url, params={"markets": markets}, timeout=5)
-            if response.status_code == 200:
-                data = response.json()
-                results = []
-                for item in data:
-                    # Calculate simplified volatility/heat score
-                    # volatility = abs(change_rate) * 100 * normalized_volume_factor
-                    change_rate = item['signed_change_rate'] # 0.05 = 5%
-                    acc_trade_price_24h = item['acc_trade_price_24h']
-                    
-                    # Heuristic score: Change% (max 50pts) + Volume (max 50pts)
-                    vol_score = abs(change_rate) * 1000 # 5% -> 50
-                    vol_score = min(vol_score, 100)
-                    
-                    market_code = item['market']
-                    symbol = market_code.split('-')[1] # KRW-BTC -> BTC
-                    
-                    # Convert symbol to Korean name mapping (simple)
-                    name_map = {
-                        'BTC': '비트코인', 'ETH': '이더리움', 'XRP': '리플', 
-                        'SOL': '솔라나', 'DOGE': '도지코인', 'SUI': '수이', 'SEI': '세이'
-                    }
-                    keyword = name_map.get(symbol, symbol)
-                    
-                    results.append({
-                        "keyword": keyword,
-                        "finance_volatility": round(vol_score, 1),
-                        "source": "Upbit"
-                    })
-                return results
-            return []
+            quant_url = "https://finance.naver.com/sise/sise_quant.naver"
+            resp = requests.get(quant_url, timeout=10)
+            # Use regex to extract stock names and change % since we don't have bs4 yet
+            # Stock links: <a href="/item/main.naver?code=XXXXXX" class="tltle">NAME</a>
+            # Change %: <span class="tah p11 red01"> +1.23% </span>
+            matches = re.findall(r'class="tltle">([^<]+)</a>.*?<span class="tah p11[^>]*>\s*([\+\-][0-9\.]+)%', resp.text, re.DOTALL)
+            for name, change in matches[:10]:
+                score = min(abs(float(change)) * 10, 100) # 5% -> 50pts
+                combined_results.append({
+                    "keyword": name,
+                    "finance_volatility": round(score, 1),
+                    "source": "NaverStock",
+                    "type": "STOCK"
+                })
         except Exception as e:
-            print(f"[Finance] Error: {e}")
-            return []
+            print(f"[NaverFinance] Stock Error: {e}")
+
+        # B. Exchange Rates & Market Index
+        try:
+            market_url = "https://finance.naver.com/marketindex/"
+            resp = requests.get(market_url, timeout=10)
+            # Extract Exchange Rates (USD, JPY, CNY)
+            # <h3 class="h_lst"><span class="blind">미국 USD</span></h3>
+            # <span class="value">1,335.50</span>
+            # <span class="change"> 1.50</span>
+            rate_matches = re.findall(r'<h3 class="h_lst"><span class="blind">([^<]+)</span>.*?<span class="value">([^<]+)</span>', resp.text, re.DOTALL)
+            for label, value in rate_matches[:4]: # USD, JPY, EUR, CNY
+                clean_label = label.replace("환전 고시 환율", "").strip()
+                combined_results.append({
+                    "keyword": clean_label,
+                    "finance_volatility": 50, # Bass score for general interest
+                    "source": "NaverMarket",
+                    "type": "FINANCE",
+                    "related_insight": f"실시간 환율: {value}"
+                })
+        except Exception as e:
+            print(f"[NaverFinance] Market Error: {e}")
+
+        return combined_results
 
     def fetch_community_trends(self):
         """
