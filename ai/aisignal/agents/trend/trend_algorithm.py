@@ -150,11 +150,16 @@ class TrendAnalyzer:
         prompt = f"""
         Group the following keywords into distinct topics. Determine a single representative keyword for each group.
         
+        CRITICAL INSTRUCTION: 
+        The 'representative' MUST be the most specific and trending keyword from the group, NOT a generic category.
+        - BAD: "Cryptocurrency", "Technology", "Food"
+        - GOOD: "Bitcoin", "Nvidia", "Tanghulu"
+        
         Keywords: {", ".join(keywords)}
         
         Output Format (JSON):
         [
-            {{"representative": "Topic A", "members": ["kw1", "kw2"]}},
+            {{"representative": "SpecificKeyword", "members": ["kw1", "kw2"]}},
             ...
         ]
         """

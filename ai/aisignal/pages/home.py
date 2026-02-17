@@ -123,14 +123,20 @@ def show():
     import html
     
     all_items_html = ""
+    # Render loop with columns for interactivity
     for i, item in enumerate(live_trends):
         rank = i + 1
-        keyword = html.escape(str(item.get('keyword', 'Unknown')))
-        insight = html.escape(str(item.get('related_insight', 'Analyzing signals...')))
+        keyword = item.get('keyword', 'Unknown')
+        insight = item.get('related_insight', '')
+        
+        # Fallback if insight is missing or technical
+        if not insight or insight.startswith("Signals:") or insight.startswith("Sources:"):
+             insight = "AI가 퀀텀 시그널을 분석 중입니다..."
+
         source = item.get('source', 'System')
         signal_type = item.get('type', item.get('status', 'INFO'))
         link = item.get('link', '#')
-        score = item.get('avg_score', 80)
+        score = float(item.get('avg_score', 80))
         
         # Badge Configuration
         badge_config = {
@@ -145,7 +151,6 @@ def show():
         config = badge_config.get(signal_type, {"bg": "#444", "label": signal_type})
         badge_bg = config["bg"]
         badge_label = config["label"]
-        score_val = float(score)
         
         # Signal Breakdown Rendering
         breakdown = item.get('signal_breakdown', {})
@@ -167,9 +172,43 @@ def show():
                     color = colors.get(k, '#888')
                     badges_html += f'<span style="background: rgba(255,255,255,0.05); border: 1px solid {color}88; color: #ddd; font-size: 0.65rem; padding: 2px 8px; border-radius: 6px; margin-right: 5px; margin-bottom: 5px; display: inline-block;">{icon} {int(v)}</span>'
 
-        # Append to master HTML
-        all_items_html += f'<div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 15px; margin-bottom: 15px; display: flex; align-items: start; gap: 15px;"><div style="font-family: \'Orbitron\', sans-serif; font-size: 2.2rem; font-weight: 900; color: var(--acc-blue); text-shadow: 0 0 10px var(--acc-blue); min-width: 45px; text-align: center;">{rank}</div><div style="flex-grow: 1;"><div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;"><a href="{link}" target="_blank" style="text-decoration: none; color: white; font-size: 1.2rem; font-weight: 700;">{keyword}</a><span style="background: {badge_bg}; color: #000; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; font-weight: 800; vertical-align: middle;">{badge_label}</span></div><div style="color: #aaa; font-size: 0.95rem; line-height: 1.4; margin-bottom: 10px;">{insight}</div><div style="display: flex; flex-wrap: wrap;">{badges_html}</div></div><div style="min-width: 140px; text-align: right;"><div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;"><span style="font-size: 0.65rem; color: #666; font-family: \'Orbitron\';">SIGNAL</span><span style="font-size: 0.9rem; color: var(--acc-blue); font-weight: 700;">{score_val:.1f}</span></div><div style="width: 100%; height: 4px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; margin-bottom: 8px;"><div style="width: {min(score_val, 100)}%; height: 100%; background: linear-gradient(90deg, var(--acc-blue), #ff00e6); box-shadow: 0 0 10px var(--acc-blue);"></div></div></div></div>'
-    
-    # Render all at once
-    st.markdown(all_items_html, unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+        # Ranking Row Container
+        with st.container():
+            st.markdown(f"""
+            <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 15px; margin-bottom: 15px;">
+            """, unsafe_allow_html=True)
+            
+            c1, c2, c3 = st.columns([1, 6, 2])
+            
+            with c1:
+                st.markdown(f"""<div style="font-family: 'Orbitron', sans-serif; font-size: 2.2rem; font-weight: 900; color: var(--acc-blue); text-shadow: 0 0 10px var(--acc-blue); text-align: center; line-height: 1.2;">{rank}</div>""", unsafe_allow_html=True)
+                
+            with c2:
+                # Keyword + Badge
+                st.markdown(f"""
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
+                    <a href="{link}" target="_blank" style="text-decoration: none; color: white; font-size: 1.2rem; font-weight: 700;">{keyword}</a>
+                    <span style="background: {badge_bg}; color: #000; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; font-weight: 800; vertical-align: middle;">{badge_label}</span>
+                </div>
+                <div style="color: #aaa; font-size: 0.95rem; line-height: 1.4; margin-bottom: 10px;">{insight}</div>
+                <div style="display: flex; flex-wrap: wrap;">{badges_html}</div>
+                """, unsafe_allow_html=True)
+                
+            with c3:
+                # Score + Scan Button
+                st.markdown(f"""
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
+                    <span style="font-size: 0.65rem; color: #666; font-family: 'Orbitron';">SIGNAL</span>
+                    <span style="font-size: 0.9rem; color: var(--acc-blue); font-weight: 700;">{score:.1f}</span>
+                </div>
+                <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; margin-bottom: 12px;">
+                    <div style="width: {min(score, 100)}%; height: 100%; background: linear-gradient(90deg, var(--acc-blue), #ff00e6); box-shadow: 0 0 10px var(--acc-blue);"></div>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                # The Missing Scan Button
+                if st.button("🔭 스캔", key=f"scan_{i}", help=f"{keyword}에 대한 심층 분석 수행", use_container_width=True):
+                    st.session_state['last_scan'] = keyword
+                    st.rerun()
+
+            st.markdown("</div>", unsafe_allow_html=True)
