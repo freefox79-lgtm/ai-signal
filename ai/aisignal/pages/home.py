@@ -120,10 +120,11 @@ def show():
     st.markdown('<div class="ranking-container">', unsafe_allow_html=True)
     
     import json
+    import html
     for i, item in enumerate(live_trends):
         rank = i + 1
-        keyword = item.get('keyword', 'Unknown')
-        insight = item.get('related_insight', '')
+        keyword = html.escape(item.get('keyword', 'Unknown'))
+        insight = html.escape(item.get('related_insight', ''))
         source = item.get('source', 'System')
         signal_type = item.get('type', item.get('status', 'INFO'))
         link = item.get('link', '#')
