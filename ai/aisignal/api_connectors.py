@@ -310,6 +310,8 @@ class APIConnectors:
             "q": query,
             "type": "video",
             "order": "viewCount",
+            "videoCategoryId": "25", # News & Politics
+            "regionCode": "KR",
             "maxResults": 5,
             "key": self.youtube_key
         }
@@ -741,6 +743,77 @@ class APIConnectors:
             print(f"[Shopping] Error: {e}")
             return []
 
+    @cache.cached(source="Finance", expiry=600)
+    def fetch_finance_trends(self):
+        """
+        [Source E: Finance] Weights 0.1
+        Fetches Top Volatility Crypto from Upbit.
+        """
+        if self.mode == "MOCK":
+            return [{"keyword": "비트코인", "finance_volatility": 80}, {"keyword": "리플", "finance_volatility": 60}]
+            
+        self._throttle()
+        url = "https://api.upbit.com/v1/ticker"
+        # Top KRW markets
+        markets = "KRW-BTC,KRW-ETH,KRW-XRP,KRW-SOL,KRW-DOGE,KRW-SUI,KRW-SEI" 
+        
+        try:
+            response = requests.get(url, params={"markets": markets}, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                results = []
+                for item in data:
+                    # Calculate simplified volatility/heat score
+                    # volatility = abs(change_rate) * 100 * normalized_volume_factor
+                    change_rate = item['signed_change_rate'] # 0.05 = 5%
+                    acc_trade_price_24h = item['acc_trade_price_24h']
+                    
+                    # Heuristic score: Change% (max 50pts) + Volume (max 50pts)
+                    vol_score = abs(change_rate) * 1000 # 5% -> 50
+                    vol_score = min(vol_score, 100)
+                    
+                    market_code = item['market']
+                    symbol = market_code.split('-')[1] # KRW-BTC -> BTC
+                    
+                    # Convert symbol to Korean name mapping (simple)
+                    name_map = {
+                        'BTC': '비트코인', 'ETH': '이더리움', 'XRP': '리플', 
+                        'SOL': '솔라나', 'DOGE': '도지코인', 'SUI': '수이', 'SEI': '세이'
+                    }
+                    keyword = name_map.get(symbol, symbol)
+                    
+                    results.append({
+                        "keyword": keyword,
+                        "finance_volatility": round(vol_score, 1),
+                        "source": "Upbit"
+                    })
+                return results
+            return []
+        except Exception as e:
+            print(f"[Finance] Error: {e}")
+            return []
+
+    def fetch_community_trends(self):
+        """
+        [Source C: Community] Weights 0.2
+        Fetches signals from DC Inside / FMKorea.
+        Currently Mocked for stability, will upgrade to scraper.
+        """
+        # Placeholder: Return generic hot topics
+        return [
+            {"keyword": "치킨", "community_activity": 40},
+            {"keyword": "택배", "community_activity": 30},
+            {"keyword": "날씨", "community_activity": 50}
+        ]
+
+    def fetch_sns_trends(self):
+        """
+        [Source B: SNS] Weights 0.25
+        Fetches signals from Twitter/Instagram.
+        Currently Mocked due to API restrictions.
+        """
+        return []
+
     def _refine_with_local_llm(self, raw_items: List[Dict]) -> List[Dict]:
         """
         [Stage 2: Refinement]
@@ -1036,7 +1109,7 @@ class APIConnectors:
             with get_db_connection(self.db_url) as conn:
                 with conn.cursor() as cur:
                     cur.execute("""
-                        SELECT rank, keyword, avg_score, related_insight, status, source, link
+                        SELECT rank, keyword, avg_score, related_insight, status, source, link, signal_breakdown
                         FROM active_realtime_trends
                         ORDER BY rank ASC
                         LIMIT 10
@@ -1045,6 +1118,9 @@ class APIConnectors:
                     trends = []
                     for row in cur.fetchall():
                         # rank, keyword, score, insight, status, source, link
+                        # Handle breakdown if exists
+                        breakdown = row[7] if len(row) > 7 and row[7] else {}
+                        
                         trends.append({
                             "rank": row[0],
                             "keyword": row[1],
@@ -1053,7 +1129,8 @@ class APIConnectors:
                             "status": row[4],  # NEW, RISING, PEAK
                             "source": row[5],
                             "link": row[6],
-                            "type": row[4] # Map status to type for badge compatibility
+                            "type": row[4], # Map status to type for badge compatibility
+                            "signal_breakdown": breakdown
                         })
                     return trends
         except Exception as e:
@@ -1180,7 +1257,7 @@ class APIConnectors:
             })
             
         body = {
-            "startDate": (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d"),
+            "startDate": (datetime.now() - timedelta(days=5)).strftime("%Y-%m-%d"),
             "endDate": datetime.now().strftime("%Y-%m-%d"),
             "timeUnit": "date",
             "keywordGroups": groups
@@ -1189,7 +1266,15 @@ class APIConnectors:
         try:
             response = requests.post(url, headers=headers, json=body)
             if response.status_code == 200:
-                return response.json()
+                # Parse raw response to {keyword: [data]}
+                raw_data = response.json()
+                parsed_results = {}
+                if 'results' in raw_data:
+                    for item in raw_data['results']:
+                        # item['title'] is the group name (our keyword)
+                        # item['data'] is the list of {period, ratio}
+                        parsed_results[item['title']] = item.get('data', [])
+                return parsed_results
             else:
                 print(f"⚠️ [Naver Datalab] Error: {response.text}")
                 return {}
@@ -1256,25 +1341,19 @@ class APIConnectors:
                 if not items:
                     return 0
                     
-                # Calculate how many in last 1 hour
+                # Calculate how many in last 24 hours (or Today)
                 count = 0
-                now = datetime.now()
-                for item in items:
-                    # Format: "Mon, 20 May 2024 10:00:00 +0900" (RFC 822) or YYYYMMDD
-                    # Naver Blog API usually returns 'postdate': '20240520' (No time!)
-                    # So we might use 'description' or just total count estimation
-                    # For accuracy, better to use 'total' count from response?
-                    # But 'total' is all time.
-                    
-                    # Alternative: We assume fetch returns latest. 
-                    # If 100th item is 'today', it's high velocity.
-                    pass
+                now_str = datetime.now().strftime("%Y%m%d")
                 
-                # Simple logic: If 100 items returned and last one is today -> High Velocity
-                last_item_date = items[-1]['postdate'] # YYYYMMDD
-                if last_item_date == now.strftime("%Y%m%d"):
-                    return 100 # At least 100 today
-                return 10 # Low
+                for item in items:
+                    # Naver Blog API returns 'postdate': 'YYYYMMDD'
+                    pdate = item.get('postdate', '')
+                    if pdate == now_str:
+                        count += 1
+                
+                # If we fetched 100 and all 100 are today, it's very high velocity
+                # If 50 are today, density is 50.
+                return count 
             return 0
         except Exception as e:
             return 0

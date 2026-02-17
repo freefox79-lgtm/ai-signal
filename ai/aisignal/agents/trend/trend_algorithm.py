@@ -43,44 +43,95 @@ class TrendAnalyzer:
             return 0.0
         return (current_value - previous_value) / time_delta_minutes
 
-    def cross_reference_signals(self, naver_candidates: List[Dict], youtube_candidates: List[Dict]) -> List[Dict]:
+    # Phase 13: Weighted Scoring Configuration
+    WEIGHTS = {
+        'search': 0.3,    # Naver/Google
+        'sns': 0.25,      # Twitter/Insta
+        'community': 0.2, # DC/FMKorea
+        'video': 0.15,    # YouTube
+        'finance': 0.1    # Stock/Crypto
+    }
+
+    def calculate_weighted_score(self, signals: Dict[str, float]) -> float:
         """
-        Boosts scores if a keyword appears in both Naver (Interest Start) and YouTube (Viral Spread).
+        Calculates the Total Signal Score based on the 5-source weighted formula.
+        Signals should be normalized to 0-100 range before calling.
+        """
+        total_score = 0.0
+        details = {}
+        
+        for source, weight in self.WEIGHTS.items():
+            raw_score = signals.get(source, 0.0)
+            # Cap raw score at 100 for safety, though normalization should handle it
+            normalized = min(max(raw_score, 0.0), 100.0)
+            
+            weighted_val = normalized * weight
+            total_score += weighted_val
+            details[source] = weighted_val
+            
+        return round(total_score, 2)
+
+    def calculate_slope(self, series: List[float]) -> float:
+        """
+        Calculates the Rate of Change (Slope).
+        Formula: (Current - Avg_History) / Avg_History
+        """
+        if not series or len(series) < 2:
+            return 0.0
+            
+        current = series[-1]
+        history = series[:-1]
+        avg_hist = np.mean(history)
+        
+        if avg_hist == 0:
+            return 0.0 if current == 0 else 1.0 # Jump from 0 is infinite, cap at 1.0 (100%)
+            
+        return (current - avg_hist) / avg_hist
+
+    def cross_reference_signals(self, candidates: List[Dict]) -> List[Dict]:
+        """
+        Processes a list of candidates that already have raw signal data attached.
+        Calculates the final weighted score for each.
         """
         refined_list = []
         
-        # Simple exact match or partial match map
-        # In production, vector similarity would be better, but we start with string matching
-        yt_map = {item['keyword']: item for item in youtube_candidates}
-        
-        for n_item in naver_candidates:
-            keyword = n_item['keyword']
-            base_score = n_item['z_score']
+        for item in candidates:
+            # 1. Normalize Signals (Enhanced with Phase 14 Precision)
             
-            # Cross-ref check
-            if keyword in yt_map:
-                # Boost!
-                yt_velocity = yt_map[keyword].get('velocity', 0)
-                boost_factor = 1.0 + (min(yt_velocity, 10.0) * 0.1) # Max 2x burst
-                final_score = base_score * 1.5 * boost_factor
-                
-                n_item['cross_ref_source'] = 'YouTube'
-                n_item['status'] = 'VIRAL'
+            # Search Score: Composition of Z-Score, Slope, and Density
+            z_score = item.get('z_score', 0)
+            slope = item.get('slope', 0) # e.g. 0.5 = 50% increase
+            density = item.get('search_density', 0) # e.g. 50 posts/3h
+            
+            # Heuristic: 
+            # Z=3 -> 60pts
+            # Slope=1.0 -> 50pts
+            # Density=100 -> 50pts
+            search_raw = (z_score * 20) + (slope * 50) + (density * 0.5)
+            
+            signals = {
+                'search': min(search_raw, 100),
+                'video': min(item.get('velocity', 0) * 10, 100),       # Vel=10 -> 100
+                'sns': item.get('sns_volume', 0),                      # Direct (Mock)
+                'community': item.get('community_activity', 0),        # Direct (Mock)
+                'finance': item.get('finance_volatility', 0)           # Direct (Mock)
+            }
+            
+            # 2. Calculate Weighted Score
+            final_score = self.calculate_weighted_score(signals)
+            item['final_score'] = final_score
+            item['signal_breakdown'] = signals
+            
+            # 3. Determine Status
+            if final_score > 80:
+                item['status'] = 'BREAKING'
+            elif final_score > 50:
+                item['status'] = 'VIRAL'
             else:
-                final_score = base_score
-                n_item['status'] = 'RISING'
+                item['status'] = 'RISING'
                 
-            n_item['final_score'] = round(final_score, 2)
-            refined_list.append(n_item)
+            refined_list.append(item)
             
-        # Add YouTube-only items if they are super hot (Velocity > Threshold)
-        for y_item in youtube_candidates:
-            if y_item['keyword'] not in [r['keyword'] for r in refined_list]:
-                if y_item.get('velocity', 0) > 5.0: # High velocity threshold
-                    y_item['final_score'] = y_item.get('velocity', 0) * 10 
-                    y_item['status'] = 'BREAKING'
-                    refined_list.append(y_item)
-                    
         return sorted(refined_list, key=lambda x: x['final_score'], reverse=True)
 
     def cluster_keywords(self, candidates: List[Dict]) -> List[Dict]:
@@ -173,6 +224,63 @@ class TrendAnalyzer:
 
         return candidates
 
+    def generate_trend_briefing(self, keyword: str, slope: float, density: int, related_keywords: List[str] = None) -> str:
+        """
+        Uses Local LLM (Persona: Data Analysis Expert) to explain WHY this is trending.
+        Input: Numerical evidence (Slope, Density).
+        Output: 3-line briefing.
+        """
+        # Construct Numerical Evidence string
+        evidence = []
+        if slope > 0:
+            evidence.append(f"Trend Slope: +{slope*100:.0f}% (Rapidly Rising)")
+        elif slope < 0:
+            evidence.append(f"Trend Slope: {slope*100:.0f}% (Cooling Down)")
+        else:
+            evidence.append("Trend Slope: Flat")
+            
+        evidence.append(f"Posting Density: {density} posts/3h")
+        
+        if density >= 50:
+             evidence.append("(High Urgency/Viral)")
+        elif density < 10:
+             evidence.append("(Low Volume/Organic)")
+             
+        related_str = ", ".join(related_keywords) if related_keywords else "None"
+             
+        prompt = f"""
+        You are a Data Analysis Expert. Your job is to explain why '{keyword}' is trending based on the provided data.
+        
+        [Data Evidence]
+        - Keyword: {keyword}
+        - Related Keywords: {related_str}
+        - {', '.join(evidence)}
+        
+        [Task]
+        Provide a 3-line objective briefing.
+        Line 1: Interpret the metrics (Is it viral? Is it breaking news?).
+        Line 2: Hypothesize the context based on related keywords.
+        Line 3: Conclusion on the trend's momentum.
+        
+        Output only the 3 lines. Do not use markdown headers.
+        """
+        
+        try:
+            response = self.ollama.generate(
+                prompt=prompt,
+                model=self.ollama.MODEL_FAST, # Use faster model for 10x calls
+                temperature=0.3,
+                max_tokens=150,
+                options={
+                    "num_ctx": 2048,
+                    "num_gpu": 99
+                }
+            )
+            return response.strip()
+        except Exception as e:
+            print(f"⚠️ Briefing gen failed for {keyword}: {e}")
+            return "AI Analysis Unavailable"
+
     def save_trends_to_db(self, trends: List[Dict]):
         """
         Saves the processed trends to 'active_realtime_trends'
@@ -183,12 +291,13 @@ class TrendAnalyzer:
                 # 1. Clear old active trends (or archive them if we had a history table)
                 cur.execute("DELETE FROM active_realtime_trends")
                 
+                import json
                 # 2. Insert new ones
                 for i, t in enumerate(trends[:10]): # Top 10
                     cur.execute("""
                         INSERT INTO active_realtime_trends 
-                        (rank, keyword, avg_score, related_insight, status, source, link)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                        (rank, keyword, avg_score, related_insight, status, source, link, signal_breakdown)
+                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     """, (
                         i+1, 
                         t['keyword'], 
@@ -196,7 +305,8 @@ class TrendAnalyzer:
                         t.get('reason', 'AI Detection'), 
                         t.get('status', 'NEW'),
                         t.get('source', 'System'),
-                        t.get('link', '#')
+                        t.get('link', '#'),
+                        json.dumps(t.get('signal_breakdown', {}))
                     ))
             conn.commit()
         except Exception as e:

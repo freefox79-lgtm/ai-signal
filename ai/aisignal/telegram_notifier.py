@@ -7,6 +7,7 @@ scaling_monitor.py에서 호출하여 텔레그램으로 알림 전송
 import os
 import requests
 from typing import List
+from dotenv import load_dotenv
 from scaling_monitor import ScalingRecommendation
 # Load environment variables
 if os.path.exists(".env.local"):
@@ -150,6 +151,47 @@ class TelegramNotifier:
             return True
         except Exception as e:
             print(f"❌ AGI 요약 전송 실패: {e}")
+            return False
+    def send_trend_alert(self, keyword: str, score: float, breakdown: dict, briefing: str) -> bool:
+        """실시간 트렌드 고강도 시그널 알림 전송 (PRIVATE)"""
+        if not self.bot_token or not self.chat_id:
+            # Fallback for testing
+            self.bot_token = "8530154370:AAFl-gtpuIZB5HJ_PVy6rAKqNggTxoYe8Aw"
+            self.chat_id = "7971306014"
+            
+        # 이모지 매핑
+        icons = {'search': '🔍', 'video': '📺', 'sns': '🐦', 'community': '💬', 'finance': '💰'}
+        breakdown_parts = [f"{icons.get(k, '🔹')} {int(v)}" for k, v in breakdown.items() if v > 0]
+        breakdown_str = " | ".join(breakdown_parts) if breakdown_parts else "데이터 분석 중..."
+
+        # 메시지 구성
+        message = f"🚀 **AI Signal: 초고강도 트렌드 포착!**\n\n"
+        message += f"🔥 **키워드: {keyword}**\n"
+        message += f"📊 **종합 시그널 지수: {score:.1f}**\n"
+        message += f"━━━━━━━━━━━━━━━━━━━━\n\n"
+        
+        message += f"📡 **시그널 분포**\n"
+        message += f"{breakdown_str}\n\n"
+        
+        message += f"🧠 **데이터 전문가 분석**\n"
+        message += f"_{briefing}_\n\n"
+        
+        message += f"🔗 [실시간 대시보드 확인](https://aisignal-oracle.render.com)"
+
+        url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
+        data = {
+            "chat_id": self.chat_id,
+            "text": message,
+            "parse_mode": "Markdown"
+        }
+
+        try:
+            response = requests.post(url, json=data, timeout=10)
+            response.raise_for_status()
+            print(f"✅ 트렌드 알림 전송 성공: {keyword}")
+            return True
+        except Exception as e:
+            print(f"❌ 트렌드 알림 전송 실패: {e}")
             return False
 
 

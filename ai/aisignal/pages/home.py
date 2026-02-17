@@ -180,14 +180,39 @@ def show():
                 st.markdown(f"""
                     <div style="margin-top: 5px;">
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
-                            <span style="font-size: 0.65rem; color: #666; font-family: 'Orbitron';">TREND SCORE</span>
-                            <span style="font-size: 0.8rem; color: var(--acc-blue); font-weight: 700;">{score_val}%</span>
+                            <span style="font-size: 0.65rem; color: #666; font-family: 'Orbitron';">TOTAL SIGNAL</span>
+                            <span style="font-size: 0.8rem; color: var(--acc-blue); font-weight: 700;">{score_val:.1f}</span>
                         </div>
-                        <div style="width: 100%; height: 5px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden;">
-                            <div style="width: {score_val}%; height: 100%; background: linear-gradient(90deg, var(--acc-blue), #ff00e6); box-shadow: 0 0 10px var(--acc-blue);"></div>
+                        <div style="width: 100%; height: 5px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; margin-bottom: 6px;">
+                            <div style="width: {min(score_val, 100)}%; height: 100%; background: linear-gradient(90deg, var(--acc-blue), #ff00e6); box-shadow: 0 0 10px var(--acc-blue);"></div>
                         </div>
-                    </div>
                 """, unsafe_allow_html=True)
+                
+                # Signal Breakdown (Phase 13)
+                breakdown = item.get('signal_breakdown', {})
+                if breakdown:
+                    # Sort by value desc
+                    sorted_signals = sorted(breakdown.items(), key=lambda x: x[1], reverse=True)[:4] # Top 4
+                    
+                    icons = {'search': '🔍', 'video': '📺', 'sns': '🐦', 'community': '💬', 'finance': '💰'}
+                    colors = {'search': '#03c75a', 'video': '#ff0000', 'sns': '#1da1f2', 'community': '#ff4500', 'finance': '#f7931a'}
+                    
+                    badges_html = ""
+                    for k, v in sorted_signals:
+                        if v > 0:
+                            icon = icons.get(k, '🔹')
+                            color = colors.get(k, '#888')
+                            badges_html += f"""
+                                <span style="background: rgba(255,255,255,0.05); border: 1px solid {color}; color: #ddd; 
+                                             font-size: 0.6rem; padding: 2px 6px; border-radius: 8px; margin-right: 4px;">
+                                    {icon} {int(v)}
+                                </span>
+                            """
+                    
+                    if badges_html:
+                        st.markdown(f"""<div style="display: flex; flex-wrap: wrap;">{badges_html}</div>""", unsafe_allow_html=True)
+                
+                st.markdown("</div>", unsafe_allow_html=True) 
                 
             with c4:
                 # Scan Button (Match Red/Pink style if possible, or primary)
