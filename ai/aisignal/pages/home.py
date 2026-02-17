@@ -10,22 +10,25 @@ def show():
     # 🎯 홈 네온 헤더
     st.markdown("""
         <style>
-            /* High Contrast Neon Button for "스캔" */
+            /* High Contrast Neon Button for "스캔" - Electric Green for high visibility */
             div[data-testid="stButton"] > button {
-                background: linear-gradient(45deg, #00f2ff, #007AFF) !important;
+                background: linear-gradient(135deg, #39ff14, #00cb1b) !important;
                 color: #000 !important;
                 font-weight: 900 !important;
                 font-family: 'Orbitron', sans-serif !important;
-                border: none !important;
-                box-shadow: 0 0 15px rgba(0, 242, 255, 0.7) !important;
-                transition: all 0.3s ease !important;
+                border: 2px solid #39ff14 !important;
+                box-shadow: 0 0 15px rgba(57, 255, 20, 0.5), inset 0 0 10px rgba(255,255,255,0.2) !important;
+                transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
                 text-transform: uppercase !important;
-                letter-spacing: 2px !important;
+                letter-spacing: 3px !important;
+                font-size: 1rem !important;
+                border-radius: 8px !important;
             }
             div[data-testid="stButton"] > button:hover {
-                transform: scale(1.05) !important;
-                box-shadow: 0 0 25px rgba(0, 242, 255, 1.0) !important;
-                color: #fff !important;
+                transform: translateY(-2px) !important;
+                box-shadow: 0 0 30px rgba(57, 255, 20, 0.9) !important;
+                background: #39ff14 !important;
+                color: #000 !important;
             }
             div[data-testid="stButton"] > button:active {
                 transform: scale(0.95) !important;

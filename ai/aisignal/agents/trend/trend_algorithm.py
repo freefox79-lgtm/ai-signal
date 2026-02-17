@@ -254,7 +254,8 @@ class TrendAnalyzer:
         related_str = ", ".join(related_keywords) if related_keywords else "None"
              
         prompt = f"""
-        당신은 데이터 분석 전문가입니다. 주어진 데이터를 바탕으로 '{keyword}'가 왜 현재 트렌딩인지 **한국어**로 설명해 주세요.
+        [SYSTEM: OUTPUT MUST BE IN KOREAN ONLY]
+        당신은 데이터 분석 전문가입니다. 주어진 데이터를 바탕으로 '{keyword}'가 왜 현재 트렌딩인지 **반드시 한국어**로만 설명해 주세요.
         
         [Data Evidence]
         - Keyword: {keyword}
@@ -262,12 +263,12 @@ class TrendAnalyzer:
         - {', '.join(evidence)}
         
         [Task]
-        3줄의 객관적인 브리핑을 작성하세요.
-        1줄: 지표 해석 (데이터가 바이럴 상태인지, 뉴스 속보인지 등).
-        2줄: 연관 키워드를 바탕으로 한 맥락 추론.
-        3줄: 트렌드의 지속성 및 확산 가능성에 대한 결론.
+        3줄의 객관적인 브리핑을 한국어로 작성하세요. 영어는 사용하지 마세요.
+        1줄: {keyword}의 현재 지표를 해석 (바이럴, 급상승 등).
+        2줄: 연관 키워드를 통한 트렌드 배경 추론.
+        3줄: 트렌드의 지속성 및 향후 확산 가능성 결론.
         
-        **반드시 한국어로 작성하세요.** 마크다운 헤더 없이 텍스트만 출력하세요.
+        **주의: 분석 결과는 반드시 한국어(Korean)로만 출력하세요.**
         """
         
         try:
