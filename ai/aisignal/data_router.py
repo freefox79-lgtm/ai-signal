@@ -3,11 +3,11 @@ import psycopg2
 from urllib.parse import urlparse, parse_qs, urlunparse
 from dotenv import load_dotenv
 
-# Load environment variables (handles .env.local if present, then system env)
+# Load environment variables (WITHOUT OVERRIDE to respect Docker/System env)
 if os.path.exists(".env.local"):
-    load_dotenv(".env.local")
+    load_dotenv(".env.local", override=False)
 else:
-    load_dotenv()
+    load_dotenv(override=False)
 
 
 class DataRouter:
@@ -35,8 +35,8 @@ class DataRouter:
         self.macmini_url = os.getenv("DATABASE_URL")
         
         if not self.supabase_url:
-            # Fallback if specific var missing
-            self.supabase_url = self.macmini_url 
+            # Fallback if specific var missing - use Mac Mini URL but ensure it's not None
+            self.supabase_url = self.macmini_url or "postgresql://postgres:postgres@localhost:5432/aisignal"
             
     def get_connection(self, table_name: str = None):
         """

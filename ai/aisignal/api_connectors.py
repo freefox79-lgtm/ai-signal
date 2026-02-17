@@ -16,11 +16,10 @@ try:
 except ImportError:
     genai = None
 
-# Load environment variables
-# Load environment variables (Tiered: .env then .env.local as override)
-load_dotenv()
+# Load environment variables (WITHOUT OVERRIDE to respect Docker/System env)
+load_dotenv(override=False)
 if os.path.exists(".env.local"):
-    load_dotenv(".env.local", override=True)
+    load_dotenv(".env.local", override=False)
 
 
 cache = CacheManager()

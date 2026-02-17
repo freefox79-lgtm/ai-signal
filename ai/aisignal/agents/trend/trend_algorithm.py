@@ -8,6 +8,7 @@ from typing import List, Dict, Any
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
 from db_utils import get_db_connection
+from data_router import router
 from agents.llm.ollama_client import get_ollama_client
 
 class TrendAnalyzer:
@@ -342,33 +343,27 @@ class TrendAnalyzer:
 
     def save_trends_to_db(self, trends: List[Dict]):
         """
-        Saves the processed trends to 'active_realtime_trends'
+        Saves the processed trends to 'active_realtime_trends' using the DataRouter.
         """
-        conn = get_db_connection(self.db_url)
-        try:
-            with conn.cursor() as cur:
-                # 1. Clear old active trends (or archive them if we had a history table)
-                cur.execute("DELETE FROM active_realtime_trends")
-                
-                import json
-                # 2. Insert new ones
-                for i, t in enumerate(trends[:10]): # Top 10
-                    cur.execute("""
-                        INSERT INTO active_realtime_trends 
-                        (rank, keyword, avg_score, related_insight, status, source, link, signal_breakdown)
-                        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                    """, (
-                        i+1, 
-                        t['keyword'], 
-                        t['final_score'], 
-                        t.get('related_insight') or t.get('reason') or 'AI Detection', 
-                        t.get('status', 'NEW'),
-                        t.get('source', 'System'),
-                        t.get('link', '#'),
-                        json.dumps(t.get('signal_breakdown', {}))
-                    ))
-            conn.commit()
-        except Exception as e:
-            print(f"❌ DB Save failed: {e}")
-        finally:
-            conn.close()
+        # 1. Clear old active trends
+        router.execute_query("DELETE FROM active_realtime_trends", table_hint='active_realtime_trends')
+        
+        import json
+        # 2. Insert new ones
+        for i, t in enumerate(trends[:10]): # Top 10
+            router.execute_query("""
+                INSERT INTO active_realtime_trends 
+                (rank, keyword, avg_score, related_insight, status, source, link, signal_breakdown)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                i+1, 
+                t['keyword'], 
+                t['final_score'], 
+                t.get('related_insight') or t.get('reason') or 'AI Detection', 
+                t.get('status', 'NEW'),
+                t.get('source', 'System'),
+                t.get('link', '#'),
+                json.dumps(t.get('signal_breakdown', {}))
+            ), table_hint='active_realtime_trends')
+        
+        print(f"✅ [TrendAnalyzer] Saved {min(len(trends), 10)} trends via DataRouter.")

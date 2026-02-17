@@ -92,11 +92,11 @@ def get_db_connection(db_url=None, routing='default'):
     중앙 집중식 DB 연결 유틸리티
     - routing: 'default' (기본/클라우드), 'local' (맥미니), 'cloud' (수파베이스 전용)
     """
-    # Load environment variables
+    # Load environment variables (WITHOUT OVERRIDE to respect Docker/System env)
     if os.path.exists(".env.local"):
-        load_dotenv(".env.local")
+        load_dotenv(".env.local", override=False)
     else:
-        load_dotenv()
+        load_dotenv(override=False)
 
 
     # Mock Mode Injection for Intelligence Layer Expansion
