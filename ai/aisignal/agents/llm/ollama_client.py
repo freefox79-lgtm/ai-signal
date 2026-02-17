@@ -14,7 +14,7 @@ import requests
 import json
 import hashlib
 import redis
-from typing import List, Optional, Union, Dict
+from typing import List, Optional, Union, Dict, Any
 from dotenv import load_dotenv
 # Load environment variables
 if os.path.exists(".env.local"):
@@ -86,7 +86,7 @@ class OllamaClient:
         max_tokens: int = 500,
         stream: bool = False,
         use_cache: bool = True,
-        options: Dict[str, Any] = None,
+        options: Optional[Dict[str, Any]] = None,
         keep_alive: str = "5m"
     ) -> str:
         """텍스트 생성 (캐싱 지원)"""
