@@ -305,7 +305,7 @@ class TrendAnalyzer:
                         i+1, 
                         t['keyword'], 
                         t['final_score'], 
-                        t.get('related_insight', t.get('reason', 'AI Detection')), # Fix: use related_insight (LLM briefing)
+                        t.get('related_insight') or t.get('reason') or 'AI Detection', 
                         t.get('status', 'NEW'),
                         t.get('source', 'System'),
                         t.get('link', '#'),

@@ -162,7 +162,9 @@ def collect_and_analyze_trends():
                          t.get('members', [])
                      )
                      t['related_insight'] = briefing
-                     print(f"      [{i+1}] {t['keyword']} -> Briefing Generated")
+                     print(f"      [{i+1}] {t['keyword']} -> Briefing Generated: {briefing[:50]}...")
+                else:
+                     print(f"      [{i+1}] {t['keyword']} -> Briefing skipped (already exists or i > 10)")
             
         for t in final_trends:
             source_list = list(t.get('sources', []))

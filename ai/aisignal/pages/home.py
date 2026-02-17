@@ -162,40 +162,10 @@ def show():
                 if v > 0:
                     icon = icons.get(k, '🔹')
                     color = colors.get(k, '#888')
-                    badges_html += f"""
-                        <span style="background: rgba(255,255,255,0.05); border: 1px solid {color}88; color: #ddd; 
-                                     font-size: 0.65rem; padding: 2px 8px; border-radius: 6px; margin-right: 5px; margin-bottom: 5px; display: inline-block;">
-                            {icon} {int(v)}
-                        </span>
-                    """
+                    badges_html += f'<span style="background: rgba(255,255,255,0.05); border: 1px solid {color}88; color: #ddd; font-size: 0.65rem; padding: 2px 8px; border-radius: 6px; margin-right: 5px; margin-bottom: 5px; display: inline-block;">{icon} {int(v)}</span>'
 
-        # Consolidate into ONE single markdown block to avoid Streamlit HTML breakage
-        item_html = f"""
-        <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 15px; margin-bottom: 15px; display: flex; align-items: start; gap: 15px;">
-            <div style="font-family: 'Orbitron', sans-serif; font-size: 2.2rem; font-weight: 900; color: var(--acc-blue); text-shadow: 0 0 10px var(--acc-blue); min-width: 45px; text-align: center;">
-                {rank}
-            </div>
-            <div style="flex-grow: 1;">
-                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
-                    <a href="{link}" target="_blank" style="text-decoration: none; color: white; font-size: 1.2rem; font-weight: 700;">{keyword}</a>
-                    <span style="background: {badge_bg}; color: #000; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; font-weight: 800; vertical-align: middle;">{badge_label}</span>
-                </div>
-                <div style="color: #aaa; font-size: 0.95rem; line-height: 1.4; margin-bottom: 10px;">
-                    {insight}
-                </div>
-                <div style="display: flex; flex-wrap: wrap;">{badges_html}</div>
-            </div>
-            <div style="min-width: 140px; text-align: right;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
-                    <span style="font-size: 0.65rem; color: #666; font-family: 'Orbitron';">SIGNAL</span>
-                    <span style="font-size: 0.9rem; color: var(--acc-blue); font-weight: 700;">{score_val:.1f}</span>
-                </div>
-                <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; margin-bottom: 8px;">
-                    <div style="width: {min(score_val, 100)}%; height: 100%; background: linear-gradient(90deg, var(--acc-blue), #ff00e6); box-shadow: 0 0 10px var(--acc-blue);"></div>
-                </div>
-            </div>
-        </div>
-        """
+        # Strip newlines for robust rendering in Streamlit
+        item_html = f'<div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 15px; margin-bottom: 15px; display: flex; align-items: start; gap: 15px;"><div style="font-family: \'Orbitron\', sans-serif; font-size: 2.2rem; font-weight: 900; color: var(--acc-blue); text-shadow: 0 0 10px var(--acc-blue); min-width: 45px; text-align: center;">{rank}</div><div style="flex-grow: 1;"><div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;"><a href="{link}" target="_blank" style="text-decoration: none; color: white; font-size: 1.2rem; font-weight: 700;">{keyword}</a><span style="background: {badge_bg}; color: #000; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; font-weight: 800; vertical-align: middle;">{badge_label}</span></div><div style="color: #aaa; font-size: 0.95rem; line-height: 1.4; margin-bottom: 10px;">{insight}</div><div style="display: flex; flex-wrap: wrap;">{badges_html}</div></div><div style="min-width: 140px; text-align: right;"><div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;"><span style="font-size: 0.65rem; color: #666; font-family: \'Orbitron\';">SIGNAL</span><span style="font-size: 0.9rem; color: var(--acc-blue); font-weight: 700;">{score_val:.1f}</span></div><div style="width: 100%; height: 4px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; margin-bottom: 8px;"><div style="width: {min(score_val, 100)}%; height: 100%; background: linear-gradient(90deg, var(--acc-blue), #ff00e6); box-shadow: 0 0 10px var(--acc-blue);"></div></div></div></div>'
         st.markdown(item_html, unsafe_allow_html=True)
             
     st.markdown('</div>', unsafe_allow_html=True)
