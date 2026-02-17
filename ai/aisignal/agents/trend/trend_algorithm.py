@@ -148,18 +148,18 @@ class TrendAnalyzer:
             return candidates
             
         prompt = f"""
-        Group the following keywords into distinct topics. Determine a single representative keyword for each group.
+        다음 키워드들을 관련된 주제별로 그룹화하세요. 각 그룹을 대표하는 키워드는 반드시 구체적이고 트렌디한 **한국어** 키워드여야 합니다.
         
         CRITICAL INSTRUCTION: 
-        The 'representative' MUST be the most specific and trending keyword from the group, NOT a generic category.
-        - BAD: "Cryptocurrency", "Technology", "Food"
-        - GOOD: "Bitcoin", "Nvidia", "Tanghulu"
+        - Representative Keyword MUST be in **Korean**.
+        - It must be specific (e.g., "삼성전자" instead of "기술주").
+        - Do not use generic categories like "암호화폐" or "음식". Use specific names like "비트코인" or "탕후루".
         
         Keywords: {", ".join(keywords)}
         
         Output Format (JSON):
         [
-            {{"representative": "SpecificKeyword", "members": ["kw1", "kw2"]}},
+            {{"representative": "한국어핵심키워드", "members": ["kw1", "kw2"]}},
             ...
         ]
         """
@@ -254,7 +254,7 @@ class TrendAnalyzer:
         related_str = ", ".join(related_keywords) if related_keywords else "None"
              
         prompt = f"""
-        You are a Data Analysis Expert. Your job is to explain why '{keyword}' is trending based on the provided data.
+        당신은 데이터 분석 전문가입니다. 주어진 데이터를 바탕으로 '{keyword}'가 왜 현재 트렌딩인지 **한국어**로 설명해 주세요.
         
         [Data Evidence]
         - Keyword: {keyword}
@@ -262,12 +262,12 @@ class TrendAnalyzer:
         - {', '.join(evidence)}
         
         [Task]
-        Provide a 3-line objective briefing.
-        Line 1: Interpret the metrics (Is it viral? Is it breaking news?).
-        Line 2: Hypothesize the context based on related keywords.
-        Line 3: Conclusion on the trend's momentum.
+        3줄의 객관적인 브리핑을 작성하세요.
+        1줄: 지표 해석 (데이터가 바이럴 상태인지, 뉴스 속보인지 등).
+        2줄: 연관 키워드를 바탕으로 한 맥락 추론.
+        3줄: 트렌드의 지속성 및 확산 가능성에 대한 결론.
         
-        Output only the 3 lines. Do not use markdown headers.
+        **반드시 한국어로 작성하세요.** 마크다운 헤더 없이 텍스트만 출력하세요.
         """
         
         try:

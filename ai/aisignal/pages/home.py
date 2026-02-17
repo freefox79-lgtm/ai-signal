@@ -9,6 +9,28 @@ connectors = APIConnectors()
 def show():
     # 🎯 홈 네온 헤더
     st.markdown("""
+        <style>
+            /* High Contrast Neon Button for "스캔" */
+            div[data-testid="stButton"] > button {
+                background: linear-gradient(45deg, #00f2ff, #007AFF) !important;
+                color: #000 !important;
+                font-weight: 900 !important;
+                font-family: 'Orbitron', sans-serif !important;
+                border: none !important;
+                box-shadow: 0 0 15px rgba(0, 242, 255, 0.7) !important;
+                transition: all 0.3s ease !important;
+                text-transform: uppercase !important;
+                letter-spacing: 2px !important;
+            }
+            div[data-testid="stButton"] > button:hover {
+                transform: scale(1.05) !important;
+                box-shadow: 0 0 25px rgba(0, 242, 255, 1.0) !important;
+                color: #fff !important;
+            }
+            div[data-testid="stButton"] > button:active {
+                transform: scale(0.95) !important;
+            }
+        </style>
         <div style="background: rgba(3, 199, 90, 0.05); padding: 8px 15px; border-radius: 10px; border: 1px solid var(--acc-green); margin-bottom: 12px;">
             <h3 style="color: var(--acc-green); margin: 0; text-shadow: 0 0-8px var(--acc-green); font-size: 1.3rem;">🏠 홈: 실시간 데이터 스캐너</h3>
             <p style="color: #888; margin: 2px 0 0 0; font-size: 0.8rem;">전역 데이터 소스 모니터링 및 퀀텀 분석 시스템 | 상태: 활성</p>
@@ -200,7 +222,7 @@ def show():
                 st.markdown(f"""
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
                     <span style="font-size: 0.65rem; color: #666; font-family: 'Orbitron';">SIGNAL</span>
-                    <span style="font-size: 0.9rem; color: var(--acc-blue); font-weight: 700;">{score:.1f}</span>
+                    <span style="font-size: 0.9rem; color: var(--acc-blue); font-weight: 700;">{score:.1f}%</span>
                 </div>
                 <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; margin-bottom: 12px;">
                     <div style="width: {min(score, 100)}%; height: 100%; background: linear-gradient(90deg, var(--acc-blue), #ff00e6); box-shadow: 0 0 10px var(--acc-blue);"></div>
@@ -208,7 +230,9 @@ def show():
                 """, unsafe_allow_html=True)
                 
                 # The Missing Scan Button
-                if st.button("🔭 스캔", key=f"scan_{i}", help=f"{keyword}에 대한 심층 분석 수행", use_container_width=True):
+                # High Contrast & Neon Effect via internal styling (simulated with help text or just text)
+                # Streamlit button styling is limited, but we remove the icon.
+                if st.button("스 캔", key=f"scan_{i}", help=f"🚀 {keyword} 심층 분석 시작", use_container_width=True):
                     st.session_state['last_scan'] = keyword
                     st.rerun()
 
