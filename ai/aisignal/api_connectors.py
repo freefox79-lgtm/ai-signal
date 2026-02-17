@@ -312,6 +312,7 @@ class APIConnectors:
             "order": "viewCount",
             "videoCategoryId": "25", # News & Politics
             "regionCode": "KR",
+            "relevanceLanguage": "ko",
             "maxResults": 5,
             "key": self.youtube_key
         }
