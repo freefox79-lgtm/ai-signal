@@ -7,6 +7,10 @@ from api_connectors import APIConnectors
 connectors = APIConnectors()
 
 def show():
+    # 🎯 Initialize Visibility State
+    if 'show_results' not in st.session_state:
+        st.session_state['show_results'] = False
+
     # 🎯 홈 네온 헤더
     st.markdown("""
         <style>
@@ -61,13 +65,19 @@ def show():
     with search_cols[0]:
         query = st.text_input("", placeholder="텍스트, URL 또는 시그널 지문을 입력하세요...", label_visibility="collapsed")
     with search_cols[1]:
-        scan_btn = st.button("퀀텀 검색", use_container_width=True)
+        scan_btn = st.button("스캔 시작", key="main_search_btn", use_container_width=True)
     
+    # 🎯 Callback for Closing Results
+    def handle_close_results():
+        st.session_state['show_results'] = False
+        st.session_state.pop('last_scan', None)
+
     # 🚀 네온 애니메이션 / 스캔 상태 (결과 출력 위치 고정)
     if scan_btn and query:
         st.session_state['last_scan'] = query
+        st.session_state['show_results'] = True
     
-    if 'last_scan' in st.session_state:
+    if st.session_state.get('show_results', False) and 'last_scan' in st.session_state:
         query = st.session_state['last_scan']
         
         # 📊 통합 프로그레스 바 및 상태 표시
@@ -77,8 +87,11 @@ def show():
         # 📦 결과물 출력을 위한 별도 박스 (Container)
         with st.container():
             st.markdown(f"""
-                <div style="border: 1px solid var(--acc-blue); border-radius: 15px; padding: 25px; background: rgba(0, 212, 255, 0.02); margin-top: 20px;">
-                    <h3 style="color: var(--acc-blue); margin-top: 0;">🔍 스캔 및 분석 결과</h3>
+                <div class="scan-result-container">
+                    <div class="result-header-neon">
+                        <span style="font-size: 1.5rem;">🧬</span>
+                        <h3 style="color: var(--neon-cyan); margin: 0; text-shadow: none;">퀀텀 스캔 및 지능형 분석 결과</h3>
+                    </div>
             """, unsafe_allow_html=True)
             
             # 시뮬레이션된 프로그레스 업데이트 (UX 향상)
@@ -127,7 +140,6 @@ def show():
                         <h4 style="color: var(--acc-blue);">[AI Signal 퀀트 분석 결과] (Powered by Gemini)</h4>
                         <p style="font-size: 0.95rem; line-height: 1.6;">{analysis}</p>
                     </div>
-                    </div>
                 """, unsafe_allow_html=True)
             else:
                  st.markdown(f"""
@@ -135,8 +147,16 @@ def show():
                         <h4 style="color: var(--acc-blue);">[AI Signal 퀀트 분석 결과]</h4>
                         <p style="font-size: 0.95rem; line-height: 1.6;">분석할 데이터가 부족합니다. 검색 결과를 먼저 확보해주세요.</p>
                     </div>
-                    </div>
                 """, unsafe_allow_html=True)
+
+            # 🛠️ "닫기" 버튼 (우측 하단)
+            st.markdown('<div class="close-btn-container">', unsafe_allow_html=True)
+            col_close_spacer, col_close_btn = st.columns([4, 1])
+            with col_close_btn:
+                # Use callback for clean state transition
+                st.button("닫기", key="close_scan_results", use_container_width=True, on_click=handle_close_results)
+            st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
 
     st.divider()
     
@@ -264,7 +284,7 @@ def show():
                 # The Missing Scan Button
                 # High Contrast & Neon Effect via internal styling (simulated with help text or just text)
                 # Streamlit button styling is limited, but we remove the icon.
-                if st.button("퀀텀 검색", key=f"scan_{i}", help=f"🚀 {keyword} 심층 전략 분석 시작", use_container_width=True):
+                if st.button("스캔 시작", key=f"scan_{i}", help=f"🚀 {keyword} 심층 전략 분석 시작", use_container_width=True):
                     st.session_state['last_scan'] = keyword
                     st.rerun()
 

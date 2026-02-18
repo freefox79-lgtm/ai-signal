@@ -170,14 +170,14 @@ def apply_cyberpunk_theme():
         /* Mobile adjustment for Header Margin */
         @media (max-width: 768px) {
             .fixed-header {
-                padding-top: 25px !important; /* Move down a bit for status bar/notch */
-                height: 100px !important;
+                padding-top: 45px !important; /* Move down significantly for status bar/notch */
+                height: 145px !important;
             }
             .header-spacer {
-                height: 160px !important;
+                height: 210px !important;
             }
             div[data-baseweb="tab-list"], .stTabs [data-baseweb="tab-list"] {
-                top: 100px !important;
+                top: 145px !important;
             }
         }
         
@@ -637,6 +637,73 @@ def apply_cyberpunk_theme():
            ======================================== */
         .fixed-header {
             position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 99999;
+            background: rgba(10, 14, 39, 0.95);
+            backdrop-filter: blur(12px);
+            padding-top: 10px;
+            padding-bottom: 10px;
+            text-align: center;
+            border-bottom: 1px solid rgba(0, 255, 249, 0.1);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+            height: 85px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        /* 🎬 Slide-Down Animation */
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+                max-height: 0;
+                overflow: hidden;
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+                max-height: 2000px;
+            }
+        }
+
+        .scan-result-container {
+            animation: slideDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            background: rgba(5, 8, 18, 0.95); /* Darker, more opaque background */
+            border: 2px solid var(--neon-cyan); /* Stronger border */
+            border-radius: 15px;
+            padding: 30px;
+            margin-top: 25px;
+            margin-bottom: 40px;
+            position: relative;
+            box-shadow: 
+                0 0 30px rgba(0, 255, 249, 0.2),
+                inset 0 0 20px rgba(0, 255, 249, 0.05);
+            backdrop-filter: blur(10px);
+            z-index: 10;
+        }
+
+        .result-header-neon {
+            color: var(--neon-cyan);
+            border-bottom: 2px solid rgba(0, 255, 249, 0.3);
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+            text-shadow: 0 0 10px rgba(0, 255, 249, 0.5);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Close Button Styling */
+        .close-btn-container {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 30px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 20px;
+        }
     </style>
     """, unsafe_allow_html=True)
 
