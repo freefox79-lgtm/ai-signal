@@ -160,132 +160,100 @@ def show():
 
     st.divider()
     
-    # 🎯 AI Signal 실검
+    # 🎯 AI Signal 실검 (Ranking Board)
     from datetime import datetime
+    import json # Added import json here as it's used in the new code
     col_header, col_timestamp = st.columns([3, 1])
     with col_header:
-        st.markdown("<h3 style='font-size: 1.8rem; margin: 0;'>🔥 AI Signal 실검</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='font-size: 1.8rem; margin: 0;'>🔥 AI Signal 실검 랭킹</h3>", unsafe_allow_html=True)
     with col_timestamp:
         st.markdown(f"<p style='text-align: right; color: #8e8e93; font-size: 0.95rem; margin-top: 15px;'>업데이트: {datetime.now().strftime('%H:%M:%S')}</p>", unsafe_allow_html=True)
     
     try:
         # DataRouter를 통해 실시간 트렌드 로드 (Unified Engine)
         live_trends = connectors.fetch_active_realtime_trends_from_db()
-        # Fallback for UI Verification (King vs Soldier)
+        # Fallback & Top 15 Limit
         if not live_trends:
             live_trends = [{
                 "keyword": "일본 무비자 여행",
-                "related_insight": "네이버 검색량이 전일 대비 380% 급증했습니다. 팬데믹 종료 후 첫 무비자 시즌을 맞이하여 여행 수요가 폭발 중입니다.",
+                "related_insight": "네이버 검색량이 전일 대비 380% 급증하여 여행 수요 폭발 중",
                 "type": "BREAKING",
                 "avg_score": 98.5,
                 "signal_breakdown": {"search": 95, "sns": 92, "news": 88}
-            }]
+            }] * 5 # Simulate some items if DB is empty for demo
+        
+        live_trends = live_trends[:15] # Limit to top 15
     except Exception as e:
         st.error(f"트렌드 엔진 오류: {e}")
         live_trends = []
 
-    st.markdown('<div class="ranking-container">', unsafe_allow_html=True)
+    # Rendering the Ranking Board
+    st.markdown('<div class="ranking-board">', unsafe_allow_html=True)
     
-    import json
-    import html
+    # Row Header
+    st.markdown("""
+        <div class="ranking-row-header">
+            <div style="text-align: center;">순위</div>
+            <div>키워드</div>
+            <div>선정 이유</div>
+            <div>데이터 소스</div>
+            <div style="text-align: right;">액션</div>
+        </div>
+    """, unsafe_allow_html=True)
     
-    all_items_html = ""
-    # Render loop with columns for interactivity
     for i, item in enumerate(live_trends):
         rank = i + 1
         keyword = item.get('keyword', 'Unknown')
-        insight = item.get('related_insight', '')
-        
-        # Fallback if insight is missing or technical
-        if not insight or insight.startswith("Signals:") or insight.startswith("Sources:"):
-             insight = "AI가 퀀텀 시그널을 분석 중입니다..."
-
-        source = item.get('source', 'System')
-        signal_type = item.get('type', item.get('status', 'INFO'))
-        link = item.get('link', '#')
+        insight = item.get('related_insight', 'AI가 퀀텀 시그널을 분석 중입니다...')
+        if len(insight) > 60:
+            insight = insight[:57] + "..."
+            
         score = float(item.get('avg_score', 80))
         
-        # Badge Configuration
-        badge_config = {
-            "BREAKING": {"bg": "#ff2a2a", "label": "🚨 속보"},
-            "VIRAL": {"bg": "#ff00e6", "label": "🔥 바이럴"},
-            "SHOPPING": {"bg": "#39ff14", "label": "🛍️ 쇼핑"},
-            "MACRO": {"bg": "#00f2ff", "label": "🌍 거시"},
-            "NEWS": {"bg": "#007AFF", "label": "📰 뉴스"},
-            "RISING": {"bg": "#888", "label": "📈 상승"},
-        }
-        
-        config = badge_config.get(signal_type, {"bg": "#444", "label": signal_type})
-        badge_bg = config["bg"]
-        badge_label = config["label"]
-        
-        # Signal Breakdown Rendering
+        # Signal Breakdown Rendering (Graphical)
         breakdown = item.get('signal_breakdown', {})
         if isinstance(breakdown, str):
-            try:
-                breakdown = json.loads(breakdown)
-            except:
-                breakdown = {}
+            try: breakdown = json.loads(breakdown)
+            except: breakdown = {}
         
-        badges_html = ""
+        sources_html = '<div class="source-grid">'
         if breakdown:
-            sorted_signals = sorted(breakdown.items(), key=lambda x: x[1], reverse=True)[:4]
             icons = {'search': '🔍', 'video': '📺', 'sns': '🐦', 'community': '💬', 'finance': '💰'}
             colors = {'search': '#03c75a', 'video': '#ff0000', 'sns': '#1da1f2', 'community': '#ff4500', 'finance': '#f7931a'}
-            
-            for k, v in sorted_signals:
+            for k, v in sorted(breakdown.items(), key=lambda x: x[1], reverse=True)[:3]:
                 if v > 0:
                     icon = icons.get(k, '🔹')
                     color = colors.get(k, '#888')
-                    badges_html += f'<span style="background: rgba(255,255,255,0.05); border: 1px solid {color}88; color: #ddd; font-size: 0.65rem; padding: 2px 8px; border-radius: 6px; margin-right: 5px; margin-bottom: 5px; display: inline-block;">{icon} {int(v)}</span>'
+                    sources_html += f'<span class="source-icon" style="border-color: {color}66;">{icon} {int(v)}</span>'
+        else:
+            sources_html += '<span class="source-icon">📡 System</span>'
+        sources_html += '</div>'
 
-        # Ranking Row Container
+        # Row Layout using Streamlit Columns for full interactivity
         with st.container():
-            st.markdown(f"""
-            <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(255,255,255,0.05); border-radius: 12px; padding: 15px; margin-bottom: 15px;">
-            """, unsafe_allow_html=True)
+            # Inject CSS Row Container Start
+            st.markdown(f'<div class="ranking-row">', unsafe_allow_html=True)
             
-            c1, c2, c3 = st.columns([1, 6, 2])
+            r_c1, r_c2, r_c3, r_c4, r_c5 = st.columns([80, 200, 300, 200, 140])
             
-            with c1:
-                st.markdown(f"""<div style="font-family: 'Orbitron', sans-serif; font-size: 1.6rem; font-weight: 900; color: var(--acc-blue); text-shadow: 0 0 10px var(--acc-blue); text-align: center; line-height: 1.2;">{rank}</div>""", unsafe_allow_html=True)
+            with r_c1:
+                st.markdown(f'<div class="rank-num">{rank}</div>', unsafe_allow_html=True)
+            
+            with r_c2:
+                st.markdown(f'<div class="keyword-text">{keyword}</div>', unsafe_allow_html=True)
                 
-            with c2:
-                # Headline Keyword - The King (1.8rem / 900)
-                st.markdown(f"""
-                <div style="display: flex; align-items: center; gap: 15px;">
-                    <a href="{link}" target="_blank" style="text-decoration: none !important; color: white !important; font-size: 1.8rem !important; font-weight: 900 !important; letter-spacing: -1px !important; line-height: 1.0 !important; text-shadow: 0 0 15px rgba(255,255,255,0.2) !important;">{keyword}</a>
-                    <span style="background: {badge_bg} !important; color: #000 !important; font-size: 0.8rem !important; padding: 2px 10px !important; border-radius: 4px !important; font-weight: 900 !important; vertical-align: middle !important;">{badge_label}</span>
-                </div>
-                <!-- Physical Gap Injection -->
-                <div style="height: 30px !important;"></div>
-                <!-- Analysis Report Section - The Soldier (1.15rem / 600) -->
-                <div style="border-top: 1px solid rgba(255,255,255,0.1) !important; padding-top: 18px !important;">
-                    <div style="color: #CCCCCC !important; font-size: 0.95rem !important; line-height: 1.7 !important; margin-bottom: 20px !important;">
-                        <span id="report-title-{rank}" style="color: var(--acc-blue) !important; font-weight: 600 !important; font-size: 1.15rem !important; display: block !important; margin-bottom: 12px !important;">📊 분석 리포트</span>
-                        <div id="report-body-{rank}">{insight}</div>
-                    </div>
-                </div>
-                <div style="display: flex; flex-wrap: wrap; gap: 8px;">{badges_html}</div>
-                """, unsafe_allow_html=True)
+            with r_c3:
+                st.markdown(f'<div class="reason-text">{insight}</div>', unsafe_allow_html=True)
                 
-            with c3:
-                # Infographic Score Display
-                st.markdown(f"""
-                <div style="background: rgba(0, 212, 255, 0.03); padding: 12px; border-radius: 10px; border: 1px solid rgba(0, 212, 255, 0.15); text-align: center; margin-bottom: 15px;">
-                    <div style="font-family: 'Orbitron', sans-serif; font-size: 0.9rem; font-weight: 600; color: #777; margin-bottom: 8px; letter-spacing: 1px;">시그널 강도</div>
-                    <div style="font-family: 'Orbitron', sans-serif; font-size: 1.3rem; font-weight: 900; color: var(--acc-blue); text-shadow: 0 0 10px var(--acc-blue);">{score:.1f}%</div>
-                    <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.08); border-radius: 20px; overflow: hidden; margin-top: 10px; border: 1px solid rgba(255,255,255,0.03);">
-                        <div style="width: {min(score, 100)}%; height: 100%; background: linear-gradient(90deg, #00d4ff, #ff00e6); box-shadow: 0 0 15px rgba(0, 212, 255, 0.6);"></div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+            with r_c4:
+                st.markdown(sources_html, unsafe_allow_html=True)
                 
-                # The Missing Scan Button
-                # High Contrast & Neon Effect via internal styling (simulated with help text or just text)
-                # Streamlit button styling is limited, but we remove the icon.
-                if st.button("스캔 시작", key=f"scan_{i}", help=f"🚀 {keyword} 심층 전략 분석 시작", use_container_width=True):
+            with r_c5:
+                if st.button("퀀텀 분석", key=f"q_scan_{i}", use_container_width=True):
                     st.session_state['last_scan'] = keyword
                     st.rerun()
+            
+            # Close CSS Row Container
+            st.markdown('</div>', unsafe_allow_html=True)
 
-            st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)

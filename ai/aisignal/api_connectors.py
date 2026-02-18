@@ -1200,7 +1200,7 @@ class APIConnectors:
                 SELECT rank, keyword, avg_score, related_insight, status, source, link, signal_breakdown
                 FROM active_realtime_trends
                 ORDER BY rank ASC
-                LIMIT 10
+                LIMIT 15
             """
             rows = router.execute_query(query, table_hint='active_realtime_trends')
             

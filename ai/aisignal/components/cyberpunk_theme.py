@@ -696,6 +696,87 @@ def apply_cyberpunk_theme():
             gap: 10px;
         }
 
+        /* Ranking Board Container */
+        .ranking-board {
+            background: rgba(10, 14, 39, 0.4);
+            border: 1px solid rgba(0, 255, 249, 0.1);
+            border-radius: 20px;
+            padding: 5px;
+            margin-top: 20px;
+        }
+
+        .ranking-row-header {
+            display: grid;
+            grid-template-columns: 80px 1fr 1.5fr 1fr 140px;
+            padding: 15px 20px;
+            background: rgba(0, 255, 249, 0.05);
+            border-bottom: 1px solid rgba(0, 255, 249, 0.2);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.85rem;
+            color: var(--neon-cyan);
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .ranking-row {
+            display: grid;
+            grid-template-columns: 80px 1fr 1.5fr 1fr 140px;
+            align-items: center;
+            padding: 15px 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+        }
+
+        .ranking-row:hover {
+            background: rgba(0, 255, 249, 0.03);
+            transform: translateX(5px);
+            border-bottom-color: rgba(0, 255, 249, 0.2);
+        }
+
+        .rank-num {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: var(--neon-cyan);
+            text-shadow: 0 0 10px rgba(0, 255, 249, 0.5);
+            text-align: center;
+        }
+
+        .keyword-text {
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: #fff;
+            letter-spacing: -0.5px;
+        }
+
+        .reason-text {
+            font-size: 0.9rem;
+            color: #aaa;
+            line-height: 1.5;
+            padding-right: 15px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .source-grid {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .source-icon {
+            padding: 4px 8px;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.75rem;
+            color: #ddd;
+        }
+
         /* Close Button Styling */
         .close-btn-container {
             display: flex;
