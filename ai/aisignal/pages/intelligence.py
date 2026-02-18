@@ -83,12 +83,41 @@ def get_spatial_insights():
         print(f"[UI ERROR] Spatial Insights: {e}")
         return []
 
+def get_latest_consensus_briefing():
+    """Fetch the latest strategic consensus briefing"""
+    try:
+        briefing = router.execute_query(
+            "SELECT id, title, content, created_at FROM consensus_briefings ORDER BY created_at DESC LIMIT 1",
+            table_hint='consensus_briefings'
+        )
+        return briefing[0] if briefing else None
+    except Exception as e:
+        print(f"[UI ERROR] Consensus Briefing: {e}")
+        return None
+
+def save_briefing_feedback(briefing_id, rating, comment):
+    """Save user feedback for a briefing"""
+    try:
+        conn = psycopg2.connect(os.getenv("DATABASE_URL"))
+        cur = conn.cursor()
+        cur.execute("""
+            INSERT INTO briefing_feedback (briefing_id, rating, comment)
+            VALUES (%s, %s, %s)
+        """, (briefing_id, rating, comment))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return True
+    except Exception as e:
+        print(f"[UI ERROR] Save Feedback: {e}")
+        return False
+
 def show():
     # 🎯 통합 헤더
     st.markdown("""
         <div style="background: rgba(0, 212, 255, 0.05); padding: 20px; border-radius: 15px; border: 1px solid var(--acc-blue); margin-bottom: 30px;">
-            <h2 style="color: var(--acc-blue); margin: 0; text-shadow: 0 0 10px var(--acc-blue);">🧠 Intelligence: 하이브리드 마켓 인사이트</h2>
-            <p style="color: #888; margin: 5px 0 0 0;">거시경제 및 소셜 트렌드 합성 분석 센터</p>
+            <h2 style="color: var(--acc-blue); margin: 0; text-shadow: 0 0 10px var(--acc-blue); font-size: 1.8rem;">🧠 Intelligence: 하이브리드 마켓 인사이트</h2>
+            <p style="color: #888; margin: 5px 0 0 0; font-size: 0.95rem;">거시경제 및 소셜 트렌드 합성 분석 센터</p>
         </div>
         <style>
             /* Jfit/Jwem 테마별 마크다운 스타일링 (하얀 바탕 방지) */
@@ -130,8 +159,20 @@ def show():
                 border-top: 1px solid rgba(255, 255, 255, 0.05);
             }
             .stMarkdown p {
-                color: #ddd !important;
+                color: #BBBBBB !important;
+                font-size: 0.9rem !important;
                 line-height: 1.6;
+            }
+            .stMarkdown strong {
+                color: #fff !important;
+            }
+            /* AI Briefing headers - Compact Refinement */
+            .persona-content h1, .persona-content h2, .persona-content h3, .persona-content h4 {
+                color: #fff !important;
+                font-size: 1.05rem !important;
+                font-weight: 600 !important;
+                margin-top: 1.0rem !important;
+                margin-bottom: 0.6rem !important;
             }
         </style>
 
@@ -357,6 +398,54 @@ def show():
 
 
 
+
+    st.divider()
+
+    # 5. 🤝 Strategic Consensus Briefing (Phase 4)
+    st.markdown("### 🤝 Strategic Consensus Briefing (Gemma 3 12B)")
+    
+    briefing = get_latest_consensus_briefing()
+    
+    col_brief_1, col_brief_2 = st.columns([3, 1])
+    
+    with col_brief_2:
+        if st.button("✨ 전략 합의 브리핑 생성", use_container_width=True, key="gen_consensus"):
+            with st.status("🔮 Gemma 3 12B 전략 합의 중...", expanded=True) as status:
+                try:
+                    from analysis_generator import AnalysisGenerator
+                    gen = AnalysisGenerator()
+                    bid = gen.generate_strategic_consensus_briefing()
+                    status.update(label="✅ 브리핑 생성 완료", state="complete", expanded=False)
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"생성 실패: {e}")
+                    status.update(label="❌ 생성 실패", state="error", expanded=False)
+
+    if briefing:
+        bid, btitle, bcontent, bdate = briefing
+        st.markdown(f"""
+            <div style="background: rgba(0, 212, 255, 0.05); padding: 25px; border-radius: 15px; border: 1px solid var(--acc-blue); margin-bottom: 20px;">
+                <h4 style="color: var(--acc-blue); margin-top: 0; font-family: 'Orbitron';">🛰️ {btitle}</h4>
+                <div style="font-size: 0.8rem; color: #666; margin-bottom: 20px;">생성일시: {bdate} | Model: Gemma 3 12B (M4 Optimized)</div>
+                <div class='persona-content'>{bcontent}</div>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        # Feedback Section
+        with st.expander("💬 이 브리핑에 대한 피드백 남기기"):
+            f_col1, f_col2 = st.columns([1, 3])
+            with f_col1:
+                rating = st.select_slider("만족도", options=[1, 2, 3, 4, 5], value=5)
+            with f_col2:
+                comment = st.text_input("추가 의견 (젬마 학습에 반영됩니다)", placeholder="예: 구체적인 수치가 더 포함되면 좋겠어요.")
+            
+            if st.button("피드백 제출", key=f"fbtn_{bid}"):
+                if save_briefing_feedback(bid, rating, comment):
+                    st.success("피드백이 성공적으로 제출되었습니다. 다음 브리핑 품질 개선에 활용됩니다!")
+                else:
+                    st.error("피드백 제출 중 오류가 발생했습니다.")
+    else:
+        st.info("아직 생성된 전략 합의 브리핑이 없습니다. 상단의 버튼을 눌러 첫 번째 브리핑을 생성하세요.")
 
     st.divider()
 

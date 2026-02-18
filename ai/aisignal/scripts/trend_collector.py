@@ -4,9 +4,9 @@ import time
 import requests
 from datetime import datetime
 
-# Force OLLAMA_BASE_URL to localhost for this script (running on host)
-# This is crucial because 'localhost' inside this script refers to the Mac Mini
-os.environ["OLLAMA_BASE_URL"] = "http://localhost:11434"
+# Set OLLAMA_BASE_URL if not present (default to localhost for host runs)
+if "OLLAMA_BASE_URL" not in os.environ:
+    os.environ["OLLAMA_BASE_URL"] = "http://localhost:11434"
 
 # Path setup
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -157,12 +157,7 @@ def collect_and_analyze_trends():
             # Only process top 10 for performance
             if i < 10:
                 if 'related_insight' not in t or not t.get('related_insight'):
-                     briefing = analyzer.generate_trend_briefing(
-                         t['keyword'], 
-                         t.get('slope', 0), 
-                         t.get('search_density', 0),
-                         t.get('members', [])
-                     )
+                     briefing = analyzer.generate_trend_briefing(t)
                      t['related_insight'] = briefing
                      print(f"      [{i+1}] {t['keyword']} -> Briefing Generated: {briefing[:50]}...")
                 else:

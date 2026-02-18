@@ -20,11 +20,12 @@ class DataRouter:
     SUPABASE_TABLES = [
         'ai_signals', 'trending_top_20', 'system_status', 
         'daily_briefings', 'portfolio_summary', 'user_settings',
-        'signals', 'issues', 'market_indices', 'active_realtime_trends' 
+        'signals', 'issues', 'market_indices', 'active_realtime_trends',
+        'raw_feeds' 
     ]
     
     MACMINI_TABLES = [
-        'raw_feeds', 'crawl_logs', 'social_media_posts',
+        'crawl_logs', 'social_media_posts',
         'graph_rag_nodes', 'vector_embeddings', 'market_analysis_details',
         'market_macro_correlations', 'origin_tracking', 'stealth_asymmetric_intel',
         'intel_persona_reports', 'intel_synthetic_spatial'

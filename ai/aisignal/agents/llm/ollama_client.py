@@ -16,11 +16,11 @@ import hashlib
 import redis
 from typing import List, Optional, Union, Dict, Any
 from dotenv import load_dotenv
-# Load environment variables
+# Load environment variables (WITHOUT OVERRIDE to respect Docker/System env)
 if os.path.exists(".env.local"):
-    load_dotenv(".env.local")
+    load_dotenv(".env.local", override=False)
 else:
-    load_dotenv()
+    load_dotenv(override=False)
 
 
 # TTL 상수 import
@@ -48,7 +48,9 @@ class OllamaClient:
         base_url: str = None,
         default_model: str = "llama3.2:3b"
     ):
-        self.base_url = base_url or os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
+        # Try multiple environment variables (Priority: OLLAMA_BASE_URL > OLLAMA_HOST)
+        env_url = os.getenv("OLLAMA_BASE_URL") or os.getenv("OLLAMA_HOST")
+        self.base_url = base_url or env_url or "http://host.docker.internal:11434"
         self.default_model = default_model
         
         # Redis 캐싱
@@ -73,6 +75,30 @@ class OllamaClient:
             self.cache_monitor = get_cache_monitor()
         except ImportError:
             pass
+            
+        # GPU / Metal Status
+        self.gpu_accelerated = self.check_gpu_status()
+
+    def check_gpu_status(self) -> bool:
+        """
+        Checks if GPU acceleration (Metal) is active for the current model.
+        Uses 'ollama ps' command for verification.
+        """
+        import subprocess
+        try:
+            result = subprocess.run(['ollama', 'ps'], capture_output=True, text=True, timeout=5)
+            if result.returncode == 0:
+                output = result.stdout.lower()
+                # Pattern: Look for 100% GPU or Metal mentions
+                is_gpu = "100% gpu" in output or "metal" in output
+                if is_gpu:
+                    print(f"🚀 [Ollama] M4 Metal Acceleration confirmed active.")
+                else:
+                    print(f"⚠️ [Ollama] GPU acceleration not detected in current status.")
+                return is_gpu
+        except Exception as e:
+            print(f"ℹ️ [Ollama] GPU status check skip (Host access needed): {e}")
+        return False
     
     def _get_cache_key(self, text: str, model: str) -> str:
         """캐시 키 생성 (텍스트 + 모델 해시)"""
@@ -127,8 +153,25 @@ class OllamaClient:
         }
         
         try:
-            response = requests.post(url, json=payload, timeout=60)
-            response.raise_for_status()
+            # Optional: Log GPU check before heavy generation
+            if model == self.MODEL_REASONING:
+                self.check_gpu_status()
+                
+            # Increased timeout for heavy models (12B+)
+            request_timeout = 180 if model == self.MODEL_REASONING else 60
+            
+            try:
+                response = requests.post(url, json=payload, timeout=request_timeout)
+                response.raise_for_status()
+            except requests.exceptions.HTTPError as he:
+                # Automatic Fallback for Reasoning Model (Gemma 3 -> Llama 3)
+                if model == self.MODEL_REASONING:
+                    print(f"⚠️ [Ollama] {model} failed (500), falling back to {self.MODEL_FAST}...")
+                    payload['model'] = self.MODEL_FAST
+                    response = requests.post(url, json=payload, timeout=60)
+                    response.raise_for_status()
+                else:
+                    raise he
             
             if stream:
                 return response.iter_lines()

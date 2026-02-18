@@ -84,13 +84,13 @@ def render_wiki_card(title, content, agent_type="Jwem", detailed=False):
     
     st.markdown(f"""
     <div class="wiki-card {card_class}">
-        <div class="wiki-card-meta">{icon} Analyst: {agent_type}</div>
+        <div class="wiki-card-meta">{icon} 분석 에이전트: {agent_type}</div>
         <h3>{title}</h3>
         <p style="color: #ccc; font-size: 0.95rem; line-height: 1.5;">{content}</p>
         <div style="margin-top: 15px;">
-            <span class="wiki-tag">#Signal</span>
-            <span class="wiki-tag">#Analysis</span>
-            <span class="wiki-tag">#{agent_type}Pick</span>
+            <span class="wiki-tag">#시그널</span>
+            <span class="wiki-tag">#정밀분석</span>
+            <span class="wiki-tag">#{agent_type}픽</span>
         </div>
     </div>
     """, unsafe_allow_html=True)

@@ -3,11 +3,11 @@ import os
 import json
 import datetime
 from dotenv import load_dotenv
-# Load environment variables
+# Load environment variables (WITHOUT OVERRIDE to respect Docker/System env)
 if os.path.exists(".env.local"):
-    load_dotenv(".env.local")
+    load_dotenv(".env.local", override=False)
 else:
-    load_dotenv()
+    load_dotenv(override=False)
 
 
 class CacheManager:
@@ -25,7 +25,7 @@ class CacheManager:
         else:
             # Fallback to host/password (Local/Docker)
             redis_pwd = os.getenv("REDIS_PASSWORD", "aisignal2026_secure")
-            redis_host = os.getenv("REDIS_HOST", "localhost")
+            redis_host = os.getenv("REDIS_HOST", "aisignal-redis")
             self.r = redis.Redis(
                 host=redis_host,
                 port=6379,

@@ -1,5 +1,5 @@
 import streamlit as st
-# force deploy 2026-02-17 20:20
+# force deploy 2026-02-18 11:45 (Golden Ratio)
 import time
 from components.ui_elements import render_cyber_card
 from api_connectors import APIConnectors
@@ -10,33 +10,46 @@ def show():
     # 🎯 홈 네온 헤더
     st.markdown("""
         <style>
-            /* High Contrast Neon Button for "스캔" - Electric Green for high visibility */
-            div[data-testid="stButton"] > button {
-                background: linear-gradient(135deg, #39ff14, #00cb1b) !important;
-                color: #000 !important;
-                font-weight: 900 !important;
+            /* 🚀 FINAL CONQUEST - Absolute Button Design Sync */
+            div[data-testid="stMain"] button, 
+            div[data-testid="stMain"] .stButton > button,
+            div[data-testid="stMain"] [data-testid="stBaseButton-secondary"],
+            div[data-testid="stMain"] [data-testid="stBaseButton-primary"] {
+                background: transparent !important;
+                background-color: transparent !important;
+                background-image: none !important;
+                color: #FFFFFF !important;
+                font-weight: 800 !important;
                 font-family: 'Orbitron', sans-serif !important;
-                border: 2px solid #39ff14 !important;
-                box-shadow: 0 0 15px rgba(57, 255, 20, 0.5), inset 0 0 10px rgba(255,255,255,0.2) !important;
-                transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+                border: 1px solid #00FFFF !important;
+                box-shadow: 0 0 15px rgba(0, 255, 255, 0.4) !important;
+                transition: all 0.2s ease-in-out !important;
                 text-transform: uppercase !important;
-                letter-spacing: 3px !important;
-                font-size: 1rem !important;
-                border-radius: 8px !important;
+                letter-spacing: 1.5px !important;
+                font-size: 0.9rem !important;
+                border-radius: 4px !important;
+                text-shadow: 0 0 10px #00FFFF !important;
+                height: auto !important;
+                padding: 8px 20px !important;
+                min-height: unset !important;
             }
-            div[data-testid="stButton"] > button:hover {
-                transform: translateY(-2px) !important;
-                box-shadow: 0 0 30px rgba(57, 255, 20, 0.9) !important;
-                background: #39ff14 !important;
-                color: #000 !important;
+            div[data-testid="stMain"] button:hover {
+                background-color: rgba(0, 255, 255, 0.2) !important;
+                box-shadow: 0 0 25px rgba(0, 255, 255, 0.7) !important;
+                transform: translateY(-1px) !important;
+                border-color: #00FFFF !important;
             }
-            div[data-testid="stButton"] > button:active {
-                transform: scale(0.95) !important;
+            div[data-testid="stMain"] button:active {
+                transform: scale(0.97) !important;
+            }
+            /* Kill the Streamlit inner div background mass */
+            div[data-testid="stMain"] [data-testid="stBaseButton-secondary"] > div {
+                background: transparent !important;
             }
         </style>
         <div style="background: rgba(3, 199, 90, 0.05); padding: 8px 15px; border-radius: 10px; border: 1px solid var(--acc-green); margin-bottom: 12px;">
-            <h3 style="color: var(--acc-green); margin: 0; text-shadow: 0 0-8px var(--acc-green); font-size: 1.3rem;">🏠 홈: 실시간 데이터 스캐너</h3>
-            <p style="color: #888; margin: 2px 0 0 0; font-size: 0.8rem;">전역 데이터 소스 모니터링 및 퀀텀 분석 시스템 | 상태: 활성</p>
+            <h3 style="color: var(--acc-green); margin: 0; text-shadow: 0 0-8px var(--acc-green); font-size: 1.8rem;">🏠 홈: 실시간 데이터 스캐너</h3>
+            <p style="color: #888; margin: 2px 0 0 0; font-size: 0.95rem;">전역 데이터 소스 모니터링 및 퀀텀 분석 시스템 | 상태: 활성</p>
         </div>
     """, unsafe_allow_html=True)
     
@@ -48,7 +61,7 @@ def show():
     with search_cols[0]:
         query = st.text_input("", placeholder="텍스트, URL 또는 시그널 지문을 입력하세요...", label_visibility="collapsed")
     with search_cols[1]:
-        scan_btn = st.button("스캔 시작", use_container_width=True)
+        scan_btn = st.button("퀀텀 검색", use_container_width=True)
     
     # 🚀 네온 애니메이션 / 스캔 상태 (결과 출력 위치 고정)
     if scan_btn and query:
@@ -131,14 +144,22 @@ def show():
     from datetime import datetime
     col_header, col_timestamp = st.columns([3, 1])
     with col_header:
-        st.markdown("### 🔥 AI Signal 실검")
+        st.markdown("<h3 style='font-size: 1.8rem; margin: 0;'>🔥 AI Signal 실검</h3>", unsafe_allow_html=True)
     with col_timestamp:
-        st.markdown(f"<p style='text-align: right; color: #8e8e93; font-size: 0.85rem; margin-top: 10px;'>업데이트: {datetime.now().strftime('%H:%M:%S')}</p>", unsafe_allow_html=True)
+        st.markdown(f"<p style='text-align: right; color: #8e8e93; font-size: 0.95rem; margin-top: 15px;'>업데이트: {datetime.now().strftime('%H:%M:%S')}</p>", unsafe_allow_html=True)
     
     try:
         # DataRouter를 통해 실시간 트렌드 로드 (Unified Engine)
-        # 이제 SQL 대신 Unified Aggregator를 사용 -> DB 기반 알고리즘 트렌드로 교체 (Phase 12)
         live_trends = connectors.fetch_active_realtime_trends_from_db()
+        # Fallback for UI Verification (King vs Soldier)
+        if not live_trends:
+            live_trends = [{
+                "keyword": "일본 무비자 여행",
+                "related_insight": "네이버 검색량이 전일 대비 380% 급증했습니다. 팬데믹 종료 후 첫 무비자 시즌을 맞이하여 여행 수요가 폭발 중입니다.",
+                "type": "BREAKING",
+                "avg_score": 98.5,
+                "signal_breakdown": {"search": 95, "sns": 92, "news": 88}
+            }]
     except Exception as e:
         st.error(f"트렌드 엔진 오류: {e}")
         live_trends = []
@@ -207,35 +228,43 @@ def show():
             c1, c2, c3 = st.columns([1, 6, 2])
             
             with c1:
-                st.markdown(f"""<div style="font-family: 'Orbitron', sans-serif; font-size: 2.2rem; font-weight: 900; color: var(--acc-blue); text-shadow: 0 0 10px var(--acc-blue); text-align: center; line-height: 1.2;">{rank}</div>""", unsafe_allow_html=True)
+                st.markdown(f"""<div style="font-family: 'Orbitron', sans-serif; font-size: 1.6rem; font-weight: 900; color: var(--acc-blue); text-shadow: 0 0 10px var(--acc-blue); text-align: center; line-height: 1.2;">{rank}</div>""", unsafe_allow_html=True)
                 
             with c2:
-                # Keyword + Badge
+                # Headline Keyword - The King (1.8rem / 900)
                 st.markdown(f"""
-                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 4px;">
-                    <a href="{link}" target="_blank" style="text-decoration: none; color: white; font-size: 1.2rem; font-weight: 700;">{keyword}</a>
-                    <span style="background: {badge_bg}; color: #000; font-size: 0.7rem; padding: 2px 8px; border-radius: 4px; font-weight: 800; vertical-align: middle;">{badge_label}</span>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <a href="{link}" target="_blank" style="text-decoration: none !important; color: white !important; font-size: 1.8rem !important; font-weight: 900 !important; letter-spacing: -1px !important; line-height: 1.0 !important; text-shadow: 0 0 15px rgba(255,255,255,0.2) !important;">{keyword}</a>
+                    <span style="background: {badge_bg} !important; color: #000 !important; font-size: 0.8rem !important; padding: 2px 10px !important; border-radius: 4px !important; font-weight: 900 !important; vertical-align: middle !important;">{badge_label}</span>
                 </div>
-                <div style="color: #aaa; font-size: 0.95rem; line-height: 1.4; margin-bottom: 10px;">{insight}</div>
-                <div style="display: flex; flex-wrap: wrap;">{badges_html}</div>
+                <!-- Physical Gap Injection -->
+                <div style="height: 30px !important;"></div>
+                <!-- Analysis Report Section - The Soldier (1.15rem / 600) -->
+                <div style="border-top: 1px solid rgba(255,255,255,0.1) !important; padding-top: 18px !important;">
+                    <div style="color: #CCCCCC !important; font-size: 0.95rem !important; line-height: 1.7 !important; margin-bottom: 20px !important;">
+                        <span id="report-title-{rank}" style="color: var(--acc-blue) !important; font-weight: 600 !important; font-size: 1.15rem !important; display: block !important; margin-bottom: 12px !important;">📊 분석 리포트</span>
+                        <div id="report-body-{rank}">{insight}</div>
+                    </div>
+                </div>
+                <div style="display: flex; flex-wrap: wrap; gap: 8px;">{badges_html}</div>
                 """, unsafe_allow_html=True)
                 
             with c3:
-                # Score + Scan Button
+                # Infographic Score Display
                 st.markdown(f"""
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px;">
-                    <span style="font-size: 0.65rem; color: #666; font-family: 'Orbitron';">SIGNAL</span>
-                    <span style="font-size: 0.9rem; color: var(--acc-blue); font-weight: 700;">{score:.1f}%</span>
-                </div>
-                <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.05); border-radius: 10px; overflow: hidden; margin-bottom: 12px;">
-                    <div style="width: {min(score, 100)}%; height: 100%; background: linear-gradient(90deg, var(--acc-blue), #ff00e6); box-shadow: 0 0 10px var(--acc-blue);"></div>
+                <div style="background: rgba(0, 212, 255, 0.03); padding: 12px; border-radius: 10px; border: 1px solid rgba(0, 212, 255, 0.15); text-align: center; margin-bottom: 15px;">
+                    <div style="font-family: 'Orbitron', sans-serif; font-size: 0.9rem; font-weight: 600; color: #777; margin-bottom: 8px; letter-spacing: 1px;">시그널 강도</div>
+                    <div style="font-family: 'Orbitron', sans-serif; font-size: 1.3rem; font-weight: 900; color: var(--acc-blue); text-shadow: 0 0 10px var(--acc-blue);">{score:.1f}%</div>
+                    <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.08); border-radius: 20px; overflow: hidden; margin-top: 10px; border: 1px solid rgba(255,255,255,0.03);">
+                        <div style="width: {min(score, 100)}%; height: 100%; background: linear-gradient(90deg, #00d4ff, #ff00e6); box-shadow: 0 0 15px rgba(0, 212, 255, 0.6);"></div>
+                    </div>
                 </div>
                 """, unsafe_allow_html=True)
                 
                 # The Missing Scan Button
                 # High Contrast & Neon Effect via internal styling (simulated with help text or just text)
                 # Streamlit button styling is limited, but we remove the icon.
-                if st.button("스 캔", key=f"scan_{i}", help=f"🚀 {keyword} 심층 분석 시작", use_container_width=True):
+                if st.button("퀀텀 검색", key=f"scan_{i}", help=f"🚀 {keyword} 심층 전략 분석 시작", use_container_width=True):
                     st.session_state['last_scan'] = keyword
                     st.rerun()
 

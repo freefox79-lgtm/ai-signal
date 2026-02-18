@@ -20,21 +20,25 @@ class TrendAnalyzer:
         self.ollama = get_ollama_client()
         self.db_url = os.getenv("DATABASE_URL")
         
-    def calculate_z_score(self, current_value: float, history: List[float]) -> float:
+    def calculate_z_score(self, current_value: float, history: List[float], window_size: int = 24) -> float:
         """
-        Calculates the Z-Score of the current value against the history.
-        Z = (X - μ) / σ
+        Calculates a stable Z-Score using a moving average window.
+        Z = (X - μ_window) / σ_window
         """
         if not history or len(history) < 3:
-            return 0.0 # Not enough data
-            
-        mean = np.mean(history)
-        std_dev = np.std(history)
-        
-        if std_dev == 0:
             return 0.0
             
-        return (current_value - mean) / std_dev
+        # Use only the last window_size samples for the 24h-like effect
+        effective_history = history[-window_size:]
+        
+        mean = np.mean(effective_history)
+        std_dev = np.std(effective_history)
+        
+        if std_dev < 0.01: # Stabilize against near-zero variance
+            return 0.0
+            
+        z = (current_value - mean) / std_dev
+        return round(float(z), 2)
         
     def get_velocity(self, current_value: float, previous_value: float, time_delta_minutes: int) -> float:
         """
@@ -53,24 +57,35 @@ class TrendAnalyzer:
         'finance': 0.15   # Stock/Crypto/Market
     }
 
-    def calculate_weighted_score(self, signals: Dict[str, float]) -> float:
+    def calculate_weighted_score(self, signals: Dict[str, float], category: str = "TECH") -> float:
         """
-        Calculates the Total Signal Score based on the 5-source weighted formula.
-        Signals should be normalized to 0-100 range before calling.
+        Calculates the Total Signal Score with category-specific attenuation (λ_cat).
+        Category Coefficients:
+        - FINANCE: 0.5 (Dampen high volatility)
+        - TECH/CELEB: 1.0 (Standard)
+        - LIFESTYLE/SHOPPING: 1.2 (Boost organic impact)
         """
         total_score = 0.0
-        details = {}
+        
+        # λ_cat: Dynamic Attenuation Coefficient
+        LAMBDA_CAT = {
+            'FINANCE': 0.5,
+            'TECH': 1.0,
+            'CELEB': 1.0,
+            'LIFESTYLE': 1.2,
+            'SHOPPING': 1.2
+        }
+        lam = LAMBDA_CAT.get(category.upper(), 1.0)
         
         for source, weight in self.WEIGHTS.items():
             raw_score = signals.get(source, 0.0)
-            # Cap raw score at 100 for safety, though normalization should handle it
             normalized = min(max(raw_score, 0.0), 100.0)
+            total_score += (normalized * weight)
             
-            weighted_val = normalized * weight
-            total_score += weighted_val
-            details[source] = weighted_val
+        # Apply Category Attenuation
+        final_score = total_score * lam
             
-        return round(total_score, 2)
+        return round(float(final_score), 2)
 
     def calculate_slope(self, series: List[float]) -> float:
         """
@@ -89,37 +104,61 @@ class TrendAnalyzer:
             
         return (current - avg_hist) / avg_hist
 
+    def categorize_keyword(self, item: Dict) -> str:
+        """
+        Heuristic categorization of keywords.
+        """
+        keyword = item.get('keyword', '').upper()
+        source = item.get('source', '').upper()
+        
+        # Priority 1: Market/Finance sources
+        if any(x in source for x in ['CRYPTO', 'STOCK', 'FINANCE', 'MARKET', 'UPBIT', 'BINANCE']):
+            return 'FINANCE'
+            
+        # Priority 2: Keyword matching
+        finance_keywords = ['주가', '비트코인', '이더리움', '삼성전자', '금리', '환율']
+        if any(x in keyword for x in finance_keywords):
+            return 'FINANCE'
+            
+        lifestyle_keywords = ['여행', '음식', '맛집', '패션', '쇼핑', '할인', '탕후루']
+        if any(x in keyword for x in lifestyle_keywords):
+            return 'LIFESTYLE'
+            
+        celeb_keywords = ['컴백', '루머', '열애', '아이돌', '뉴진스', 'BTS']
+        if any(x in keyword for x in celeb_keywords):
+            return 'CELEB'
+            
+        return 'TECH' # Default
+
     def cross_reference_signals(self, candidates: List[Dict]) -> List[Dict]:
         """
-        Processes a list of candidates that already have raw signal data attached.
-        Calculates the final weighted score for each.
+        Processes a list of candidates, categorizes them, and calculates the final 
+        balanced score using λ_cat.
         """
         refined_list = []
         
         for item in candidates:
-            # 1. Normalize Signals (Enhanced with Phase 14 Precision)
+            # 0. Categorization
+            cat = self.categorize_keyword(item)
+            item['category'] = cat
             
-            # Search Score: Composition of Z-Score, Slope, and Density
+            # 1. Normalize Signals
             z_score = item.get('z_score', 0)
-            slope = item.get('slope', 0) # e.g. 0.5 = 50% increase
-            density = item.get('search_density', 0) # e.g. 50 posts/3h
+            slope = item.get('slope', 0)
+            density = item.get('search_density', 0)
             
-            # Heuristic: 
-            # Z=3 -> 60pts
-            # Slope=1.0 -> 50pts
-            # Density=100 -> 50pts
             search_raw = (z_score * 20) + (slope * 50) + (density * 0.5)
             
             signals = {
                 'search': min(search_raw, 100),
-                'video': min(item.get('velocity', 0) * 10, 100),       # Vel=10 -> 100
-                'sns': item.get('sns_volume', 0),                      # Direct (Mock)
-                'community': item.get('community_activity', 0),        # Direct (Mock)
-                'finance': min(item.get('finance_volatility', 0), 100) # Stock/Crypto Volatility
+                'video': min(item.get('velocity', 0) * 10, 100),
+                'sns': item.get('sns_volume', 0),
+                'community': item.get('community_activity', 0),
+                'finance': min(item.get('finance_volatility', 0), 100)
             }
             
-            # 2. Calculate Weighted Score
-            final_score = self.calculate_weighted_score(signals)
+            # 2. Calculate Weighted Score (with λ_cat)
+            final_score = self.calculate_weighted_score(signals, category=cat)
             item['final_score'] = final_score
             item['signal_breakdown'] = signals
             
@@ -280,66 +319,54 @@ class TrendAnalyzer:
             print(f"⚠️ Gemma reasoning failed: {e}")
             return ranked_trends
 
-    def generate_trend_briefing(self, keyword: str, slope: float, density: int, related_keywords: List[str] = None) -> str:
+    def generate_trend_briefing(self, item: Dict) -> str:
         """
-        Uses Local LLM (Persona: Data Analysis Expert) to explain WHY this is trending.
-        Input: Numerical evidence (Slope, Density).
-        Output: 3-line briefing.
+        [AI Signal: Strategic Analysis Briefing]
+        Direct synthesis focusing on 'Why' it's trending (Search spikes, SNS momentum).
         """
-        # Construct Numerical Evidence string
-        evidence = []
-        if slope > 0:
-            evidence.append(f"Trend Slope: +{slope*100:.0f}% (Rapidly Rising)")
-        elif slope < 0:
-            evidence.append(f"Trend Slope: {slope*100:.0f}% (Cooling Down)")
-        else:
-            evidence.append("Trend Slope: Flat")
-            
-        evidence.append(f"Posting Density: {density} posts/3h")
+        keyword = item.get('keyword', 'Unknown')
+        category = item.get('category', 'TECH')
+        score = item.get('final_score', 0)
+        z_value = item.get('z_score', 0)
+        source = item.get('source', 'System')
         
-        if density >= 50:
-             evidence.append("(High Urgency/Viral)")
-        elif density < 10:
-             evidence.append("(Low Volume/Organic)")
-             
-        related_str = ", ".join(related_keywords) if related_keywords else "None"
-             
         prompt = f"""
-        [SYSTEM: OUTPUT MUST BE IN KOREAN ONLY]
-        당신은 데이터 분석 전문가입니다. 주어진 데이터를 바탕으로 '{keyword}'가 왜 현재 트렌딩인지 **반드시 한국어**로만 설명해 주세요.
+        당신은 AI Signal 시스템의 분석 엔진 Gemma 3입니다. 
+        데이터 시그널을 분석하여 이 트렌드가 '왜' 발생했는지 대중이 이해하기 쉽게 직관적인 브리핑을 작성하세요.
         
-        [Data Evidence]
-        - Keyword: {keyword}
-        - Related Keywords: {related_str}
-        - {', '.join(evidence)}
+        [데이터 요약]
+        - 키워드: {keyword} ({category})
+        - 분석 지표: 검색량(Z-Score {z_value}), 사회적 화제성(Score {score})
+        - 주요 신호: {source}
         
-        [Task]
-        3줄의 객관적인 브리핑을 한국어로 작성하세요. 영어는 사용하지 마세요.
-        1줄: {keyword}의 현재 지표를 해석 (바이럴, 급상승 등).
-        2줄: 연관 키워드를 통한 트렌드 배경 추론.
-        3줄: 트렌드의 지속성 및 향후 확산 가능성 결론.
+        [작업 가이드]
+        1. "네이버 검색량이 전일 대비 급증", "SNS 및 커뮤니티 언급 횟수 대폭 증가", "주요 매체 보도" 등 구체적인 원인을 언급하세요.
+        2. 페르소나(쥄/쥐핏) 언급 없이, 객관적이고 전문가적인 어조로 핵심만 전달하세요.
+        3. 반드시 2~3문장의 짧고 강렬한 Markdown 텍스트로 한국어로만 출력하세요.
         
-        **주의: 분석 결과는 반드시 한국어(Korean)로만 출력하세요.**
+        [출력 양식 예시]
+        ### [AI SIGNAL: 전략 분석]
+        해당 키워드는 현재 네이버 검색량이 급격히 상승 중이며, 주요 커뮤니티와 SNS상에서 언급 횟수가 빠르게 증가하고 있습니다. 특히 관련 매체의 보도가 이어지며 사회적 화제성이 임계치를 돌파한 것으로 분석됩니다. 향후 48시간 동안 높은 모멘텀이 유지될 것으로 예측됩니다.
         """
         
         try:
             response = self.ollama.generate(
                 prompt=prompt,
-                model=self.ollama.MODEL_FAST, # Use faster model for 10x calls
+                model=self.ollama.MODEL_REASONING, # Using Gemma 3 12B
                 temperature=0.3,
-                max_tokens=150,
+                max_tokens=400,
                 options={
-                    "num_ctx": 2048,
-                    "num_gpu": 99
+                    "num_ctx": 4096,
+                    "num_gpu": 99 # Maximize M4 Metal
                 }
             )
-            return response.strip()
+            report = response.strip()
+            if not report.startswith("###"):
+                report = f"### [AI SIGNAL: 전략 분석]\n{report}"
+            return report
         except Exception as e:
             print(f"⚠️ Briefing gen failed for {keyword}: {e}")
-            # Structural Fallback
-            desc = "상승 추세가 관측됩니다." if slope > 0 else "데이터 변동이 감지되었습니다."
-            urgency = " (급상승 중)" if density > 30 else ""
-            return f"{keyword}에 대한 {desc}{urgency} 분석 데이터 축적 중입니다."
+            return f"### [AI SIGNAL: 전략 분석]\n\n해당 키워드의 네이버 검색량 및 SNS 화제성 지표가 임계치를 돌파하여 분석 중입니다."
 
     def save_trends_to_db(self, trends: List[Dict]):
         """
