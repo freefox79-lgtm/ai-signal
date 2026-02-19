@@ -1,6 +1,8 @@
-
 import os
 import sys
+from dotenv import load_dotenv
+
+load_dotenv() # Load .env file
 
 print("--- DEBUG GEMINI START ---")
 print(f"Python Version: {sys.version}")

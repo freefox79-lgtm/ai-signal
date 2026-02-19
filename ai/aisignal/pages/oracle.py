@@ -41,9 +41,9 @@ def fetch_issues():
 def show():
     # 🎯 핫이슈 네온 헤더
     st.markdown("""
-        <div style="background: rgba(157, 0, 255, 0.05); padding: 20px; border-radius: 15px; border: 1px solid var(--acc-purple); margin-bottom: 30px;">
-            <h2 style="color: var(--acc-purple); margin: 0; text-shadow: 0 0 10px var(--acc-purple);">🔥 핫이슈: 지능형 시장 신호와 예측</h2>
-            <p style="color: #888; margin: 5px 0 0 0;">실시간 고위험/고수익 시그널 및 미래 예측 데이터 분석 | 상태: 퀀텀 싱크</p>
+        <div class="tab-intro-card">
+            <h2 class="intro-title">🔥 핫이슈: 지능형 시장 신호와 예측</h2>
+            <p class="intro-desc">실시간 고위험/고수익 시그널 및 미래 예측 데이터 분석 | 상태: 퀀텀 싱크</p>
         </div>
     """, unsafe_allow_html=True)
 

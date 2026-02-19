@@ -32,9 +32,9 @@ def show():
     
     # 🎯 이슈근원지 네온 헤더
     st.markdown("""
-        <div style="background: rgba(0, 212, 255, 0.05); padding: 20px; border-radius: 15px; border: 1px solid var(--acc-blue); margin-bottom: 30px;">
-            <h2 style="color: var(--acc-blue); margin: 0; text-shadow: 0 0 10px var(--acc-blue);">🔍 이슈근원지: GraphRAG 지식 아카이브</h2>
-            <p style="color: #888; margin: 5px 0 0 0;">데이터 소스 관계 맵핑 및 엔티티 추적 시스템 | 상태: 활성화</p>
+        <div class="tab-intro-card">
+            <h2 class="intro-title">🔍 이슈근원지: GraphRAG 지식 아카이브</h2>
+            <p class="intro-desc">데이터 소스 관계 맵핑 및 엔티티 추적 시스템 | 상태: 활성화</p>
         </div>
     """, unsafe_allow_html=True)
     

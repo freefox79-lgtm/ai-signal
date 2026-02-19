@@ -115,9 +115,9 @@ def save_briefing_feedback(briefing_id, rating, comment):
 def show():
     # 🎯 통합 헤더
     st.markdown("""
-        <div style="background: rgba(0, 212, 255, 0.05); padding: 20px; border-radius: 15px; border: 1px solid var(--acc-blue); margin-bottom: 30px;">
-            <h2 style="color: var(--acc-blue); margin: 0; text-shadow: 0 0 10px var(--acc-blue); font-size: 1.8rem;">🧠 Intelligence: 하이브리드 마켓 인사이트</h2>
-            <p style="color: #888; margin: 5px 0 0 0; font-size: 0.95rem;">거시경제 및 소셜 트렌드 합성 분석 센터</p>
+        <div class="tab-intro-card">
+            <h2 class="intro-title">🧠 Intelligence: 하이브리드 마켓 인사이트</h2>
+            <p class="intro-desc">거시경제 및 소셜 트렌드 합성 분석 센터</p>
         </div>
         <style>
             /* Jfit/Jwem 테마별 마크다운 스타일링 (하얀 바탕 방지) */

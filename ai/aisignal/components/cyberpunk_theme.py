@@ -63,21 +63,22 @@ def apply_cyberpunk_theme():
         .main .block-container {
             max-width: 1200px !important;
             margin: 0 auto !important;
-            padding-top: 0 !important; /* Phase 3: Absolute zero */
+            padding-top: 170px !important; /* Clearance for Desktop Fixed Header + Tabs */
             padding-bottom: 5rem;
             padding-left: 2rem;
             padding-right: 2rem;
         }
 
-        /* Root container override for extreme tightness */
+        /* Root container override - Set clearance */
         [data-testid="stAppViewContainer"] > section:nth-child(2) > div:nth-child(1) {
-            padding-top: 0 !important;
+            padding-top: 0 !important; /* Managed by block-container */
         }
 
         /* Responsive adjustments for smaller screens */
         @media (max-width: 1200px) {
             .main .block-container {
                 max-width: 100% !important;
+                padding-top: 240px !important; /* Clearance for Mobile Fixed Header + Tabs */
                 padding-left: 1rem;
                 padding-right: 1rem;
             }
@@ -167,51 +168,37 @@ def apply_cyberpunk_theme():
             justify-content: center;
         }
         
-        /* Mobile adjustment for Header Margin */
-        @media (max-width: 768px) {
-            .fixed-header {
-                padding-top: 45px !important; /* Move down significantly for status bar/notch */
-                height: 145px !important;
-            }
-            .header-spacer {
-                height: 210px !important;
-            }
-            div[data-baseweb="tab-list"], .stTabs [data-baseweb="tab-list"] {
-                top: 145px !important;
-            }
-        }
         
-        /* Spacer covers Header (85px) + Fixed Tabs (~55px) */
+        /* Spacer covers Header + Fixed Tabs (Perfect Clearance) */
         .header-spacer {
-            height: 140px !important; 
+            height: 170px !important; /* Standard Height for Desktop */
             width: 100%;
             display: block;
         }
         
-        /* Fixed Tabs (Always on Top) */
+        /* Fixed Tabs Block (Standard Deployment) */
         div[data-baseweb="tab-list"], .stTabs [data-baseweb="tab-list"] {
             position: fixed !important;
-            top: 85px !important; /* Immediately below header */
-            left: 0;
-            width: 100%;
-            z-index: 99990;
-            background: rgba(10, 14, 39, 0.95);
+            top: 85px !important;
+            left: 0 !important;
+            width: 100% !important;
+            z-index: 999995;
+            background: rgba(10, 14, 39, 0.98);
+            backdrop-filter: blur(8px);
             padding-top: 5px;
             padding-bottom: 5px;
             margin-top: 0 !important;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-            border-radius: 0 0 10px 10px;
-            transition: top 0.2s ease;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            border-bottom: 2px solid var(--neon-cyan);
             display: flex !important;
-            justify-content: center !important;
-            
-            /* Responsive Swipeable Tabs Fix */
+            justify-content: flex-start !important;
+            flex-wrap: nowrap !important;
             overflow-x: auto !important;
             overflow-y: hidden !important;
-            flex-wrap: nowrap !important;
-            scrollbar-width: none; /* Firefox */
-            -ms-overflow-style: none; /* IE/Edge */
             -webkit-overflow-scrolling: touch;
+            padding-left: 20px !important;
+            padding-right: 20px !important;
+            scrollbar-width: none;
         }
         
         /* Hide Scrollbar for Tabs List */
@@ -427,6 +414,9 @@ def apply_cyberpunk_theme():
             font-weight: 700;
             padding: 10px 20px;
             transition: all 0.3s ease;
+            white-space: nowrap !important; /* Prevent text wrapping */
+            flex-shrink: 0 !important; /* Prevent tabs from getting squeezed */
+            margin-right: 5px !important;
         }
         
         .stTabs [data-baseweb="tab"]:hover {
@@ -439,9 +429,59 @@ def apply_cyberpunk_theme():
                 135deg,
                 var(--neon-cyan),
                 var(--neon-blue)
-            );
-            color: var(--bg-dark);
-            box-shadow: 0 0 20px var(--accent-glow-strong);
+            ) !important;
+            color: #ffffff !important;
+            box-shadow: 0 0 20px var(--accent-glow-strong) !important;
+        }
+        
+        /* Deep text color forcing for all tabs and their nested spans/p tags */
+        .stTabs [data-baseweb="tab"] *, 
+        .stTabs [data-baseweb="tab"] p, 
+        .stTabs [data-baseweb="tab"] span {
+            color: inherit !important;
+        }
+
+        /* MOBILE OVERRIDES (Last to ensure precedence) */
+        @media (max-width: 768px) {
+            .fixed-header {
+                padding-top: 45px !important;
+                height: 145px !important;
+                z-index: 1000001 !important;
+                border-bottom: none !important;
+                background: rgba(10, 14, 39, 1.0) !important;
+                box-shadow: none !important;
+            }
+            .header-spacer {
+                height: 240px !important; /* Mobile Height for Fixed Nav Stack */
+            }
+            div[data-baseweb="tab-list"], .stTabs [data-baseweb="tab-list"] {
+                position: fixed !important;
+                top: 145px !important; 
+                left: 0 !important;
+                width: 100% !important;
+                height: 60px !important;
+                z-index: 1000000 !important;
+                background: rgba(10, 14, 39, 1.0) !important;
+                border-bottom: 2px solid var(--neon-cyan) !important;
+                flex-wrap: nowrap !important;
+                overflow-x: auto !important;
+                display: flex !important;
+                padding-left: 15px !important;
+                padding-right: 15px !important;
+                box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+                -webkit-overflow-scrolling: touch !important;
+            }
+            .stMain {
+                padding-top: 0 !important;
+            }
+        }
+        
+        .stTabs [aria-selected="false"] {
+            color: var(--text-secondary) !important;
+        }
+        
+        .stTabs [aria-selected="false"]:hover {
+            color: var(--neon-cyan) !important;
         }
         
         /* ========================================
@@ -512,6 +552,38 @@ def apply_cyberpunk_theme():
         /* ========================================
            Custom Classes
            ======================================== */
+        .tab-intro-card {
+            background: rgba(26, 31, 58, 0.4) !important;
+            backdrop-filter: blur(12px) !important;
+            border: 1px solid rgba(0, 255, 249, 0.3) !important;
+            border-left: 5px solid var(--neon-cyan) !important;
+            border-radius: 15px !important;
+            padding: 30px 25px !important;
+            margin-top: 30px !important;
+            margin-bottom: 30px !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5) !important;
+            width: 100% !important;
+            max-width: 1200px !important;
+        }
+        
+        .intro-title {
+            color: var(--neon-cyan) !important;
+            font-family: 'Orbitron', sans-serif !important;
+            font-size: 1.8rem !important;
+            font-weight: 700 !important;
+            margin: 0 !important;
+            text-shadow: 0 0 10px rgba(0, 255, 249, 0.4) !important;
+            line-height: 1.3 !important;
+        }
+        
+        .intro-desc {
+            color: rgba(255, 255, 255, 0.7) !important;
+            font-size: 1.0rem !important;
+            margin: 10px 0 0 0 !important;
+            line-height: 1.6 !important;
+            font-weight: 400 !important;
+        }
+
         .neon-text {
             color: var(--neon-cyan);
             text-shadow: 
@@ -698,95 +770,248 @@ def apply_cyberpunk_theme():
 
         /* Ranking Board Container */
         .ranking-board {
-            background: rgba(10, 14, 39, 0.4);
-            border: 1px solid rgba(0, 255, 249, 0.1);
-            border-radius: 20px;
-            padding: 5px;
             margin-top: 20px;
-        }
-
-        .ranking-row-header {
-            display: grid;
-            grid-template-columns: 80px 1fr 1.5fr 1fr 140px;
-            padding: 15px 20px;
-            background: rgba(0, 255, 249, 0.05);
-            border-bottom: 1px solid rgba(0, 255, 249, 0.2);
-            font-family: 'Orbitron', sans-serif;
-            font-size: 0.85rem;
-            color: var(--neon-cyan);
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .ranking-row {
-            display: grid;
-            grid-template-columns: 80px 1fr 1.5fr 1fr 140px;
-            align-items: center;
-            padding: 15px 20px;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-            position: relative;
-        }
-
-        .ranking-row:hover {
-            background: rgba(0, 255, 249, 0.03);
-            transform: translateX(5px);
-            border-bottom-color: rgba(0, 255, 249, 0.2);
-        }
-
-        .rank-num {
-            font-family: 'Orbitron', sans-serif;
-            font-size: 1.5rem;
-            font-weight: 900;
-            color: var(--neon-cyan);
-            text-shadow: 0 0 10px rgba(0, 255, 249, 0.5);
-            text-align: center;
-        }
-
-        .keyword-text {
-            font-size: 1.25rem;
-            font-weight: 800;
-            color: #fff;
-            letter-spacing: -0.5px;
-        }
-
-        .reason-text {
-            font-size: 0.9rem;
-            color: #aaa;
-            line-height: 1.5;
-            padding-right: 15px;
-            display: -webkit-box;
-            -webkit-line-clamp: 2;
-            -webkit-box-orient: vertical;
+            background: rgba(10, 15, 30, 0.4);
+            border-radius: 12px;
             overflow: hidden;
+            border: 1px solid rgba(0, 255, 249, 0.1);
         }
 
-        .source-grid {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
+        /* 🎯 Desktop Grid Alignment (5 Columns) */
+        @media (min-width: 769px) {
+            .ranking-row-header {
+                display: grid !important;
+                grid-template-columns: 80px 200px 1fr 200px 160px !important;
+                gap: 15px !important;
+                align-items: center !important;
+                padding: 12px 20px !important;
+            }
+            .ranking-row {
+                display: grid !important;
+                grid-template-columns: 80px 200px 1fr 200px 160px !important;
+                gap: 15px !important;
+                align-items: center !important;
+                padding: 15px 20px !important;
+                min-height: 80px !important;
+            }
+            .mobile-label { display: none !important; }
+            .col-rank { text-align: center !important; order: 1; }
+            .col-keyword { text-align: left !important; font-weight: 700 !important; order: 2; }
+            .col-reason { text-align: left !important; order: 3; }
+            .col-source { text-align: center !important; order: 4; }
+            .col-action { order: 5; }
+            
+            /* Position Streamlit Button over col-action */
+            .action-btn-wrapper {
+                position: absolute !important;
+                right: 20px !important;
+                width: 140px !important;
+                z-index: 100 !important;
+                margin-top: -65px !important; /* Center with row height */
+            }
         }
 
-        .source-icon {
-            padding: 4px 8px;
-            border-radius: 6px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            font-size: 0.75rem;
-            color: #ddd;
+        /* 📱 Mobile List Card UI (Flat Structure) */
+        @media (max-width: 768px) {
+            .ranking-row-header { display: none !important; }
+            .ranking-row {
+                display: flex !important;
+                flex-wrap: wrap !important;
+                padding: 20px !important;
+                margin-bottom: 30px !important;
+                background: rgba(15, 20, 40, 0.95) !important;
+                border: 1px solid rgba(0, 255, 249, 0.4) !important;
+                border-radius: 12px !important;
+                position: relative !important;
+            }
+            .mobile-label {
+                display: inline-block !important;
+                color: #888 !important;
+                font-size: 11px !important;
+                text-transform: uppercase !important;
+                margin-right: 5px !important;
+            }
+            /* Row 1: Rank & Keyword Horizontal */
+            .col-rank {
+                width: 30% !important;
+                order: 1 !important;
+                display: flex !important;
+                align-items: center !important;
+            }
+            .col-keyword {
+                width: 70% !important;
+                order: 2 !important;
+                display: flex !important;
+                align-items: center !important;
+            }
+            .rank-num {
+                font-size: 2.2rem !important;
+                color: var(--neon-cyan) !important;
+                text-shadow: 0 0 15px var(--neon-cyan) !important;
+                font-weight: 900 !important;
+            }
+            .keyword-text {
+                font-size: 1.4rem !important;
+                font-weight: 900 !important;
+                color: #ffffff !important;
+            }
+            /* Row 2: Reason */
+            .col-reason {
+                width: 100% !important;
+                order: 3 !important;
+                margin-top: 15px !important;
+            }
+            .reason-text {
+                font-size: 13.5px !important;
+                color: #cccccc !important;
+                background: rgba(255, 255, 255, 0.05) !important;
+                border-radius: 8px !important;
+                padding: 12px !important;
+                border-left: 3px solid var(--neon-cyan) !important;
+            }
+            /* Row 3: Source */
+            .col-source {
+                width: 100% !important;
+                order: 4 !important;
+                margin-top: 15px !important;
+                text-align: left !important;
+            }
+            /* Row 4: Action */
+            .col-action {
+                width: 100% !important;
+                order: 5 !important;
+                height: 50px !important; /* Placeholder */
+            }
+            .action-btn-wrapper {
+                width: 100% !important;
+                margin-top: 15px !important;
+            }
         }
 
-        /* Close Button Styling */
-        .close-btn-container {
-            display: flex;
-            justify-content: flex-end;
-            margin-top: 30px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            padding-top: 20px;
+        /* 💀 NUCLEAR VERSION SLAYER - Refined to avoid hiding important titles */
+        span[style*="font-size:0.8rem"],
+        span[style*="0.8rem"],
+        /* h3 span, <-- Disabled to allow Quantum Search title to render */
+        [data-testid="stMarkdownContainer"] p:empty,
+        span:empty,
+        .stMarkdown div:empty {
+            display: none !important;
+            visibility: hidden !important;
+        }
+
+        /* 🎯 DEFINITIVE RANKING BOARD LAYOUT */
+        
+        /* Desktop Grid */
+        @media (min-width: 769px) {
+            .ranking-row-header {
+                display: grid !important;
+                grid-template-columns: 80px 200px 1fr 200px 160px !important;
+                gap: 15px !important;
+                align-items: center !important;
+                padding: 12px 20px !important;
+                border-bottom: 2px solid rgba(0, 255, 249, 0.3) !important;
+            }
+            .ranking-row {
+                display: grid !important;
+                grid-template-columns: 80px 200px 1fr 200px 160px !important;
+                gap: 15px !important;
+                align-items: center !important;
+                padding: 15px 20px !important;
+                min-height: 80px !important;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.05) !important;
+                transition: background 0.3s ease !important;
+            }
+            .ranking-row:hover {
+                background: rgba(0, 255, 249, 0.03) !important;
+            }
+            .mobile-label { display: none !important; }
+            .col-rank { text-align: center !important; }
+            .col-keyword { text-align: left !important; font-weight: 700 !important; }
+            .col-reason { text-align: left !important; }
+            .col-source { text-align: center !important; }
+            
+            /* Action Button Sync */
+            .action-btn-wrapper {
+                position: absolute !important;
+                right: 20px !important;
+                width: 140px !important;
+                z-index: 100 !important;
+                margin-top: -65px !important;
+            }
+        }
+
+        /* Mobile Card UI */
+        @media (max-width: 768px) {
+            .ranking-row-header { display: none !important; }
+            .ranking-row {
+                display: flex !important;
+                flex-wrap: wrap !important;
+                padding: 20px !important;
+                margin-bottom: 30px !important;
+                background: rgba(15, 20, 40, 0.95) !important;
+                border: 1px solid rgba(0, 255, 249, 0.4) !important;
+                border-radius: 12px !important;
+                box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7) !important;
+            }
+            .col-rank {
+                width: 30% !important;
+                display: flex !important;
+                align-items: center !important;
+            }
+            .col-keyword {
+                width: 70% !important;
+                display: flex !important;
+                align-items: center !important;
+            }
+            .rank-num {
+                font-size: 2.2rem !important;
+                color: var(--neon-cyan) !important;
+                text-shadow: 0 0 15px var(--neon-cyan) !important;
+                font-weight: 900 !important;
+            }
+            .keyword-text {
+                font-size: 1.4rem !important;
+                font-weight: 900 !important;
+                color: #ffffff !important;
+            }
+            .col-reason, .col-source, .col-action, .action-btn-wrapper {
+                width: 100% !important;
+                margin-top: 15px !important;
+            }
+            .reason-text {
+                font-size: 13.5px !important;
+                color: #cccccc !important;
+                background: rgba(255, 255, 255, 0.05) !important;
+                border-radius: 8px !important;
+                padding: 12px !important;
+                border-left: 3px solid var(--neon-cyan) !important;
+            }
+            .action-btn-wrapper { margin-top: 10px !important; }
+        }
+
+        /* 💀 VERSION ANNIHILATION */
+        span[style*="font-size:0.8rem"],
+        span[style*="0.8rem"],
+        [data-testid="stMarkdownContainer"] p:empty,
+        span:empty,
+        .stMarkdown div:empty,
+        [data-testid="stHeader"] .v-marker {
+            display: none !important;
+            visibility: hidden !important;
+            content: "" !important;
+        }
+
+        /* Footer Visibility */
+        .footer-section {
+            margin-top: 50px !important;
+            border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+            padding-top: 20px !important;
+        }
         }
     </style>
     """, unsafe_allow_html=True)
+
+
 
 
 def create_neon_header(title: str, subtitle: str = None):

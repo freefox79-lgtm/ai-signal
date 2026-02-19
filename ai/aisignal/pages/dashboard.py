@@ -12,9 +12,9 @@ def get_mcp_status_from_db():
 def show():
     # 🎯 회사현황 네온 헤더
     st.markdown("""
-        <div style="background: rgba(57, 255, 0, 0.05); padding: 20px; border-radius: 15px; border: 1px solid var(--acc-neon); margin-bottom: 30px;">
-            <h2 style="color: var(--acc-neon); margin: 0; text-shadow: 0 0 10px var(--acc-neon);">📈 회사현황: 시스템 운영 및 자율 인프라</h2>
-            <p style="color: #888; margin: 5px 0 0 0;">메트릭 요약, MCP 서버 상태 및 자율 윤리 로그 모니터링 | 상태: 정상</p>
+        <div class="tab-intro-card">
+            <h2 class="intro-title">📈 회사현황: 시스템 운영 및 자율 인프라</h2>
+            <p class="intro-desc">메트릭 요약, MCP 서버 상태 및 자율 윤리 로그 모니터링 | 상태: 정상</p>
         </div>
     """, unsafe_allow_html=True)
 

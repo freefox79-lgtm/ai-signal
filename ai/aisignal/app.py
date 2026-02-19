@@ -11,14 +11,14 @@ load_dotenv()
 
 # 🎯 Page Config & Custom CSS
 st.set_page_config(
-    page_title="AI SIGNAL Inc. v2.4", 
+    page_title="AI SIGNAL Inc.", 
     page_icon="🛰️", 
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# Cache Busting Hash: 20260218_1155_GOLDEN
-st.markdown(f"<!-- version: golden_ratio_2.4_1155 -->", unsafe_allow_html=True)
+# Cache Busting Hash: REL_FINAL_SYNC_20260219
+st.markdown(f"<!-- version: REL_FINAL_SYNC -->", unsafe_allow_html=True)
 
 # 🌌 네오-사이버펑크 오로라 테마 적용
 apply_cyberpunk_theme()

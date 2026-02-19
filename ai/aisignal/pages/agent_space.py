@@ -126,7 +126,12 @@ def render_wiki_card(row, agent_type):
 def show():
     # 헤더 (Integrated: App.py renders global header)
     # render_header_inline() 
-    create_neon_header("AGENT SPACE", "지식 아카이브 및 페르소나별 인사이트")
+    st.markdown("""
+        <div class="tab-intro-card">
+            <h2 class="intro-title">🏘️ AGENT SPACE</h2>
+            <p class="intro-desc">지식 아카이브 및 페르소나별 인사이트 센터</p>
+        </div>
+    """, unsafe_allow_html=True)
     
     # 데이터 로드
     df = fetch_signals_safe()
